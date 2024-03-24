@@ -1,0 +1,25 @@
+[package]
+name = "azure-speech"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde_json = "1.0.114"
+tokio = { version = "1.36.0", features = ["rt-multi-thread", "sync"] }
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+futures-util = "0.3.30"
+const_format = { version = "0.2.32" }
+url = { version = "2", features = ["serde"] }
+uuid = { version = "1.7.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
+serde = { version = "1.0.197", features = ["derive"] }
+chrono= "0.4.35"
+os_info = "3"
+log = "0.4.21"
+byteorder = "1.4.3"
+
+
+[dev-dependencies]
+tokio = { version = "1.36.0", features = ["full"] }
+simplelog = "0.12.2"
