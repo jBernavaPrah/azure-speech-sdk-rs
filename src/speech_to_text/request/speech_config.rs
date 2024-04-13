@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use crate::speech_to_text::config::{AudioHeaders, Os, RecognitionConfig, RecognitionMode, System};
+use crate::speech_to_text::AudioHeaders;
+use crate::speech_to_text::config::{ Os, RecognitionConfig, RecognitionMode, System};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct SpeechConfig {
@@ -8,23 +9,23 @@ pub(crate) struct SpeechConfig {
 }
 
 impl SpeechConfig {
-    pub(crate) fn from_config(config: RecognitionConfig, audio_headers: AudioHeaders) -> Self {
+    pub(crate) fn from_config(config: &RecognitionConfig, audio_headers: &AudioHeaders) -> Self {
         SpeechConfig {
             recognition: config.mode,
             context: Context {
                 audio: Audio {
                     source: Source {
-                        connectivity: config.source.connectivity,
-                        name: config.source.name,
-                        model: config.source.model,
-                        manufacturer: config.source.manufacturer,
+                        connectivity: config.source.connectivity.clone(),
+                        name: config.source.name.clone(),
+                        model: config.source.model.clone(),
+                        manufacturer: config.source.manufacturer.clone(),
                         bits_per_sample: audio_headers.bits_per_sample,
                         sample_rate: audio_headers.sample_rate,
-                        channel_count: audio_headers.channel_count,
+                        channel_count: audio_headers.channels,
                     }
                 },
-                system: config.system,
-                os: config.os,
+                system: config.system.clone(),
+                os: config.os.clone(),
             },
         }
     }

@@ -2,27 +2,30 @@ pub(crate) mod speech_config;
 pub(crate) mod speech_context;
 
 use chrono::{SecondsFormat, Utc};
-use serde::{ Serialize};
+use serde::{Serialize};
 use tokio_tungstenite::tungstenite::Message as TMessage;
 use crate::speech_to_text::request::speech_config::SpeechConfig;
 use crate::speech_to_text::request::speech_context::SpeechContext;
 
 const CRLF: &str = "\r\n";
 
-pub(crate) enum Request {
-    SpeechConfig { session_id: String, data: SpeechConfig },
-    SpeechContext { session_id: String, data: SpeechContext },
-    StartAudio { session_id: String, content_type: String, data: Vec<u8> },
-    Audio { session_id: String, data: Option<Vec<u8>> },
+#[derive(Debug, Clone)]
+pub(crate) enum Message {
+    SpeechConfig(SpeechConfig),
+    SpeechContext(SpeechContext),
+    AudioHeaders { content_type: String, data: Vec<u8> },
+    Audio { data: Vec<u8> },
+    EndAudio,
 }
 
-impl Into<TMessage> for Request {
-    fn into(self) -> TMessage {
+impl Message {
+    pub(crate) fn into_message(self, session_id: String) -> TMessage {
         match self {
-            Request::SpeechConfig { session_id, data } => make_text_message("speech.config".to_string(), session_id, Some("application/json".to_string()), Some(data)),
-            Request::SpeechContext { session_id, data } => make_text_message("speech.context".to_string(), session_id, Some("application/json".to_string()), Some(data)),
-            Request::StartAudio { session_id, content_type, data } => make_binary_message("audio".to_string(), session_id, Some(content_type), Some(data)),
-            Request::Audio { session_id, data } => make_binary_message("audio".to_string(), session_id, None, data)
+            Message::SpeechConfig(speech_config) => make_text_message("speech.config".to_string(), session_id, Some("application/json".to_string()), Some(speech_config)),
+            Message::SpeechContext(speech_context) => make_text_message("speech.context".to_string(), session_id, Some("application/json".to_string()), Some(speech_context)),
+            Message::AudioHeaders { content_type, data } => make_binary_message("audio".to_string(), session_id, Some(content_type), Some(data)),
+            Message::Audio { data } => make_binary_message("audio".to_string(), session_id, None, Some(data)),
+            Message::EndAudio => make_binary_message("audio".to_string(), session_id, None, None)
         }
     }
 }

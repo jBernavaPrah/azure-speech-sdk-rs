@@ -1,15 +1,19 @@
 use serde::{Deserialize, Serialize};
-use crate::speech_to_text::utils::audio_header::{get_u16, get_u32, set_string, set_u16, set_u32};
 
 #[derive(Debug, Clone)]
 pub(crate) struct RecognitionConfig {
+    pub(crate) region: String,
+    pub(crate) subscription: String,
+
     pub(crate) languages: Vec<String>,
     pub(crate) output_format: OutputFormat,
+
     pub(crate) mode: RecognitionMode,
-    // when multiple languages are set, this value need to be different from None.
+    // todo: when multiple languages are set, this value need to be different from None.
     pub(crate) language_detect_mode: Option<LanguageDetectMode>,
     /// store audio.
     pub(crate) store_audio: bool,
+
     pub(crate) profanity: Profanity,
 
     pub(crate) phrases: Option<Vec<String>>,
@@ -26,8 +30,10 @@ pub(crate) struct RecognitionConfig {
 }
 
 impl RecognitionConfig {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(region: impl Into<String>, subscription: impl Into<String>) -> Self {
         RecognitionConfig {
+            region: region.into(),
+            subscription: subscription.into(),
             mode: RecognitionMode::Conversation,
             languages: vec!["en-us".to_string()],
             output_format: OutputFormat::Simple,
@@ -41,10 +47,10 @@ impl RecognitionConfig {
 
             advanced_config: None,
 
-            source: Source::default(),
+            source: Source::unknown(),
 
             system: System::default(),
-            os: Os::default(),
+            os: Os::current(),
         }
     }
 }
@@ -61,10 +67,10 @@ pub struct System {
 impl System {
     pub fn default() -> Self {
         System {
-            name: "rust".to_string(),
+            name: env!("CARGO_PKG_NAME").to_string(),
             build: "rust".to_string(),
-            version: "0.0.1".to_string(),
-            lang: "Rust".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            lang: "rust".to_string(),
         }
     }
 }
@@ -77,7 +83,7 @@ pub struct Os {
 }
 
 impl Os {
-    pub fn default() -> Self {
+    pub fn current() -> Self {
         let os = os_info::get();
         Os {
             version: os.version().to_string(),
@@ -97,10 +103,36 @@ pub struct Source {
 }
 
 impl Source {
-    pub fn default() -> Self {
+    pub fn unknown() -> Self {
         Source {
             name: "Unknown".to_string(),
             model: "Unknown".to_string(),
+            manufacturer: "Unknown".to_string(),
+            connectivity: "Unknown".to_string(),
+        }
+    }
+
+    pub fn file() -> Self {
+        Source {
+            name: "File".to_string(),
+            model: "File".to_string(),
+            manufacturer: "Unknown".to_string(),
+            connectivity: "Unknown".to_string(),
+        }
+    }
+    pub fn microphone() -> Self {
+        Source {
+            name: "Stream".to_string(),
+            model: "Microphone".to_string(),
+            manufacturer: "Unknown".to_string(),
+            connectivity: "Unknown".to_string(),
+        }
+    }
+
+    pub fn stream() -> Self {
+        Source {
+            name: "Stream".to_string(),
+            model: "File".to_string(),
             manufacturer: "Unknown".to_string(),
             connectivity: "Unknown".to_string(),
         }
@@ -117,113 +149,6 @@ pub struct Silence {
 #[derive(Debug, Clone)]
 pub struct AdvancedConfig {
     pub word_level_timestamps: bool,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum AudioFormat {
-    PCM,
-    MuLaw,
-    Siren,
-    MP3,
-    SILKSkype,
-    OggOpus,
-    WebmOpus,
-    ALaw,
-    FLAC,
-    OPUS,
-    None,
-}
-
-impl From<u16> for AudioFormat {
-    fn from(value: u16) -> Self {
-        match value {
-            1 => AudioFormat::PCM,
-            6 => AudioFormat::ALaw,
-            7 => AudioFormat::MuLaw,
-            _ => AudioFormat::None
-        }
-    }
-}
-
-impl Into<u16> for AudioFormat {
-    fn into(self) -> u16 {
-        match self {
-            AudioFormat::PCM => 1,
-            AudioFormat::ALaw => 6,
-            AudioFormat::MuLaw => 7,
-            _ => 0
-        }
-    }
-}
-
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct AudioHeaders {
-    #[serde(skip_serializing)]
-    pub format: AudioFormat,
-
-    #[serde(rename = "samplerate")]
-    pub sample_rate: u32,
-    #[serde(rename = "bitspersample")]
-    pub bits_per_sample: u16,
-    #[serde(rename = "channelcount")]
-    pub channel_count: u16,
-
-}
-
-impl From<Vec<u8>> for AudioHeaders {
-    fn from(value: Vec<u8>) -> Self {
-        AudioHeaders {
-            format: get_u16(&value, 20).into(),
-            channel_count: get_u16(&value, 22),
-            sample_rate: get_u32(&value, 24),
-            bits_per_sample: get_u16(&value, 34),
-        }
-    }
-}
-
-impl Into<Vec<u8>> for AudioHeaders {
-    fn into(self) -> Vec<u8> {
-        let mut buffer: Vec<u8> = vec![0; 44];
-
-        // RIFF identifier
-        set_string(&mut buffer, 0, "RIFF");
-
-        // file length
-        set_u32(&mut buffer, 4, 0);
-
-        // RIFF type & Format
-        set_string(&mut buffer, 8, "WAVEfmt ");
-
-        // format chunk length
-        set_u32(&mut buffer, 16, 16);
-
-        // audio format
-        set_u16(&mut buffer, 20, 1); // Assuming PCM format
-
-        // channel count
-        set_u16(&mut buffer, 22, 1); // Assuming mono channel
-
-        // sample rate
-        set_u32(&mut buffer, 24, 16000); // Assuming 16KHz
-
-        // byte rate (sample rate * block align)
-        set_u32(&mut buffer, 28, 16000 * 1 * 2); // Assuming 16KHz, mono channel, 16 bits per sample
-
-        // block align (channel count * bytes per sample)
-        set_u16(&mut buffer, 32, 1 * 2); // Assuming mono channel, 16 bits per sample
-
-        // bits per sample
-        set_u16(&mut buffer, 34, 16); // Assuming 16 bits per sample
-
-        // data chunk identifier
-        set_string(&mut buffer, 36, "data");
-
-        // data chunk length
-        set_u32(&mut buffer, 40, 0);
-
-        buffer
-    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

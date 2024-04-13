@@ -1,4 +1,5 @@
 use std::result;
+use cpal::{DefaultStreamConfigError, DeviceNameError, DevicesError};
 use tokio::task::JoinError;
 
 use tokio_tungstenite::tungstenite::Error as TError;
@@ -55,6 +56,33 @@ impl From<serde_json::error::Error> for Error {
 
 impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Error {
+        Error {
+            message: format!("{}", error),
+            code: None,
+        }
+    }
+}
+
+impl From<DevicesError> for Error {
+    fn from(error: DevicesError) -> Error {
+        Error {
+            message: format!("{}", error),
+            code: None,
+        }
+    }
+}
+
+impl From<DeviceNameError> for Error {
+    fn from(error: DeviceNameError) -> Error {
+        Error {
+            message: format!("{}", error),
+            code: None,
+        }
+    }
+}
+
+impl From<DefaultStreamConfigError> for Error {
+    fn from(error: DefaultStreamConfigError) -> Error {
         Error {
             message: format!("{}", error),
             code: None,
