@@ -1,9 +1,12 @@
 use serde::{Deserialize, Serialize};
+use crate::auth::Auth;
+use crate::speech_to_text::source::Source;
 
-#[derive(Debug, Clone)]
-pub(crate) struct RecognitionConfig {
-    pub(crate) region: String,
-    pub(crate) subscription: String,
+#[derive(Debug)]
+pub struct ResolverConfig {
+    pub(crate) auth: Auth,
+
+    pub(crate) source: Source,
 
     pub(crate) languages: Vec<String>,
     pub(crate) output_format: OutputFormat,
@@ -23,17 +26,15 @@ pub(crate) struct RecognitionConfig {
     pub(crate) custom_models: Option<Vec<(String, String)>>,
 
     pub(crate) os: Os,
-    pub(crate) system: System,
-    pub(crate) source: Source,
+    pub(crate) system: System
 
-    pub(crate) advanced_config: Option<AdvancedConfig>,
 }
 
-impl RecognitionConfig {
-    pub(crate) fn new(region: impl Into<String>, subscription: impl Into<String>) -> Self {
-        RecognitionConfig {
-            region: region.into(),
-            subscription: subscription.into(),
+impl ResolverConfig {
+    pub fn new(auth: Auth, source: Source) -> Self {
+        ResolverConfig {
+            auth,
+            source,
             mode: RecognitionMode::Conversation,
             languages: vec!["en-us".to_string()],
             output_format: OutputFormat::Simple,
@@ -45,13 +46,68 @@ impl RecognitionConfig {
             language_detect_mode: None,
             custom_models: None,
 
-            advanced_config: None,
-
-            source: Source::unknown(),
-
             system: System::default(),
-            os: Os::current(),
+            os: Os::current()
         }
+    }
+
+
+    pub fn set_language(&mut self, language: impl Into<String>) -> &mut Self {
+        self.languages = vec![language.into()];
+        self
+    }
+
+
+    pub fn set_detect_languages(&mut self,
+                                languages: Vec<impl Into<String>>,
+                                language_detect_mode: LanguageDetectMode,
+    ) -> &mut Self {
+        self.languages = languages.into_iter().map(|l| l.into()).collect();
+        self.language_detect_mode = Some(language_detect_mode);
+        self
+    }
+
+
+    pub fn set_phrases(&mut self, phrases: Vec<String>) -> &mut Self {
+        self.phrases = Some(phrases);
+        self
+    }
+
+    pub fn set_store_audio(&mut self, store: bool) -> &mut Self {
+        self.store_audio = store;
+        self
+    }
+
+    pub fn set_profanity(&mut self, profanity: Profanity) -> &mut Self {
+        self.profanity = profanity;
+        self
+    }
+
+    pub fn set_os(&mut self, os: Os) -> &mut Self {
+        self.os = os;
+        self
+    }
+
+    pub fn set_system(&mut self, system: System) -> &mut Self {
+        self.system = system;
+        self
+    }
+
+    pub fn set_custom_models(&mut self, custom_models: Vec<(String, String)>) -> &mut Self {
+        self.custom_models = Some(custom_models);
+        self
+    }
+
+    pub(crate) fn set_mode(&mut self, mode: RecognitionMode) -> &mut Self {
+        self.mode = mode;
+        self
+    }
+
+
+    // use the ::<DetailedFormat|SimpleFormat> for defining the output format
+    pub fn set_output_format(&mut self, format: OutputFormat) -> &mut Self {
+        self.output_format = format;
+        self
     }
 }
 
@@ -73,6 +129,15 @@ impl System {
             lang: "rust".to_string(),
         }
     }
+
+    pub fn unknown() -> Self {
+        System {
+            name: "Unknown".to_string(),
+            build: "Unknown".to_string(),
+            version: "Unknown".to_string(),
+            lang: "Unknown".to_string(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -91,50 +156,12 @@ impl Os {
             platform: os.to_string(),
         }
     }
-}
 
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Source {
-    pub name: String,
-    pub model: String,
-    pub connectivity: String,
-    pub manufacturer: String,
-}
-
-impl Source {
     pub fn unknown() -> Self {
-        Source {
+        Os {
+            version: "Unknown".to_string(),
             name: "Unknown".to_string(),
-            model: "Unknown".to_string(),
-            manufacturer: "Unknown".to_string(),
-            connectivity: "Unknown".to_string(),
-        }
-    }
-
-    pub fn file() -> Self {
-        Source {
-            name: "File".to_string(),
-            model: "File".to_string(),
-            manufacturer: "Unknown".to_string(),
-            connectivity: "Unknown".to_string(),
-        }
-    }
-    pub fn microphone() -> Self {
-        Source {
-            name: "Stream".to_string(),
-            model: "Microphone".to_string(),
-            manufacturer: "Unknown".to_string(),
-            connectivity: "Unknown".to_string(),
-        }
-    }
-
-    pub fn stream() -> Self {
-        Source {
-            name: "Stream".to_string(),
-            model: "File".to_string(),
-            manufacturer: "Unknown".to_string(),
-            connectivity: "Unknown".to_string(),
+            platform: "Unknown".to_string(),
         }
     }
 }
@@ -175,7 +202,7 @@ impl RecognitionMode {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum OutputFormat {
     Simple,
     Detailed,

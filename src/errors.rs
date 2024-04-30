@@ -1,8 +1,12 @@
 use std::result;
 use cpal::{DefaultStreamConfigError, DeviceNameError, DevicesError};
+use flume::SendError;
 use tokio::task::JoinError;
 
 use tokio_tungstenite::tungstenite::Error as TError;
+
+
+pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct Error {
@@ -11,21 +15,20 @@ pub struct Error {
 }
 
 impl Error {
-    pub fn new(message: String) -> Self {
+    pub fn new(message: impl Into<String>) -> Self {
         Error {
-            message,
+            message: message.into(),
             code: None,
         }
     }
-    pub fn new_with_code(message: String, code: String) -> Self {
+    pub fn new_with_code(message: impl Into<String>, code: impl Into<String>) -> Self {
         Error {
-            message,
-            code: Some(code),
+            message: message.into(),
+            code: Some(code.into()),
         }
     }
 }
 
-pub type Result<T> = result::Result<T, Error>;
 
 impl From<JoinError> for Error {
     fn from(error: JoinError) -> Self {
@@ -83,6 +86,15 @@ impl From<DeviceNameError> for Error {
 
 impl From<DefaultStreamConfigError> for Error {
     fn from(error: DefaultStreamConfigError) -> Error {
+        Error {
+            message: format!("{}", error),
+            code: None,
+        }
+    }
+}
+
+impl<T> From<SendError<T>> for Error {
+    fn from(error: SendError<T>) -> Error {
         Error {
             message: format!("{}", error),
             code: None,

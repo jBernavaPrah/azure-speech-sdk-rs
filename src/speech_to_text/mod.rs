@@ -1,12 +1,11 @@
 mod recognizer;
-mod config;
-mod response;
-mod request;
-mod utils;
-mod connector;
+pub(crate) mod source;
+pub mod event;
+pub mod speech;
+pub(crate) mod client;
+pub(crate) mod utils;
+pub mod config;
 
 // exports only the necessary types
 pub use recognizer::{Recognizer};
-pub use config::{RecognitionMode, OutputFormat, Profanity, LanguageDetectMode, Os, System, Source, AdvancedConfig};
-pub use response::{Message};
-pub use utils::{AudioHeaders, AudioFormat};
+pub use source::{Headers, AudioFormat, Source};
