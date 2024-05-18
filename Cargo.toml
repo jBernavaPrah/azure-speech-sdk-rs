@@ -14,8 +14,8 @@ include = [
     "readme.md",
     "LICENSE-APACHE",
     "LICENSE-MIT",
-    "src/*.rs",
-    "doc/*.md",
+    "src/*",
+    "doc/*",
 ]
 categories = ["multimedia", "multimedia::audio", "text-processing"]
 keywords = [
