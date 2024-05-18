@@ -1,9 +1,8 @@
 use std::result;
-use cpal::{DefaultStreamConfigError, DeviceNameError, DevicesError};
-use flume::SendError;
 use tokio::task::JoinError;
 
-use tokio_tungstenite::tungstenite::Error as TError;
+use tokio_tungstenite::tungstenite::{Error as TError};
+use crate::connector::message;
 
 
 pub type Result<T> = result::Result<T, Error>;
@@ -39,6 +38,16 @@ impl From<JoinError> for Error {
     }
 }
 
+impl From<tokio::sync::mpsc::error::SendError<message::Message>> for Error {
+    fn from(error: tokio::sync::mpsc::error::SendError<message::Message>) -> Self {
+        Error {
+            message: format!("{}", error),
+            code: None,
+        }
+    }
+
+}
+
 impl From<TError> for Error {
     fn from(error: TError) -> Self {
         Error {
@@ -66,38 +75,3 @@ impl From<std::io::Error> for Error {
     }
 }
 
-impl From<DevicesError> for Error {
-    fn from(error: DevicesError) -> Error {
-        Error {
-            message: format!("{}", error),
-            code: None,
-        }
-    }
-}
-
-impl From<DeviceNameError> for Error {
-    fn from(error: DeviceNameError) -> Error {
-        Error {
-            message: format!("{}", error),
-            code: None,
-        }
-    }
-}
-
-impl From<DefaultStreamConfigError> for Error {
-    fn from(error: DefaultStreamConfigError) -> Error {
-        Error {
-            message: format!("{}", error),
-            code: None,
-        }
-    }
-}
-
-impl<T> From<SendError<T>> for Error {
-    fn from(error: SendError<T>) -> Error {
-        Error {
-            message: format!("{}", error),
-            code: None,
-        }
-    }
-}

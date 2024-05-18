@@ -1,12 +1,10 @@
 use serde::{Deserialize, Serialize};
 use crate::auth::Auth;
-use crate::speech_to_text::source::Source;
 
 #[derive(Debug)]
+/// The configuration for the recognition.
 pub struct ResolverConfig {
     pub(crate) auth: Auth,
-
-    pub(crate) source: Source,
 
     pub(crate) languages: Vec<String>,
     pub(crate) output_format: OutputFormat,
@@ -26,15 +24,15 @@ pub struct ResolverConfig {
     pub(crate) custom_models: Option<Vec<(String, String)>>,
 
     pub(crate) os: Os,
-    pub(crate) system: System
-
+    pub(crate) system: System,
 }
 
 impl ResolverConfig {
-    pub fn new(auth: Auth, source: Source) -> Self {
+    
+    /// Create a new configuration with the given auth.
+    pub fn new(auth: Auth) -> Self {
         ResolverConfig {
             auth,
-            source,
             mode: RecognitionMode::Conversation,
             languages: vec!["en-us".to_string()],
             output_format: OutputFormat::Simple,
@@ -47,17 +45,18 @@ impl ResolverConfig {
             custom_models: None,
 
             system: System::default(),
-            os: Os::current()
+            os: Os::current(),
         }
     }
 
-
+    /// Set the default language for the recognition.
+    /// If needed multiple language detection, use the set_detect_languages method. 
     pub fn set_language(&mut self, language: impl Into<String>) -> &mut Self {
         self.languages = vec![language.into()];
         self
     }
 
-
+    /// Instruct to detect the languages from the audio.
     pub fn set_detect_languages(&mut self,
                                 languages: Vec<impl Into<String>>,
                                 language_detect_mode: LanguageDetectMode,
@@ -66,45 +65,57 @@ impl ResolverConfig {
         self.language_detect_mode = Some(language_detect_mode);
         self
     }
-
-
+    
+    /// Helping phrases to detect better the context.
+    /// Untested.
     pub fn set_phrases(&mut self, phrases: Vec<String>) -> &mut Self {
         self.phrases = Some(phrases);
         self
     }
-
+    
+    /// Store the audio.
+    /// Untested.
     pub fn set_store_audio(&mut self, store: bool) -> &mut Self {
         self.store_audio = store;
         self
     }
 
+    /// Mask the profanity.
     pub fn set_profanity(&mut self, profanity: Profanity) -> &mut Self {
         self.profanity = profanity;
         self
     }
-
+    
+    /// Overwrite the OS information.
+    /// This information is taken automatically from the system. But you can overwrite it.
     pub fn set_os(&mut self, os: Os) -> &mut Self {
         self.os = os;
         self
     }
 
+    /// Overwrite the System information.
+    /// This information is taken automatically from the system. But you can overwrite it.
     pub fn set_system(&mut self, system: System) -> &mut Self {
         self.system = system;
         self
     }
 
+    /// Use custom Models. 
+    /// Untested.
     pub fn set_custom_models(&mut self, custom_models: Vec<(String, String)>) -> &mut Self {
         self.custom_models = Some(custom_models);
         self
     }
 
+    /// Set the recognition mode. 
+    /// Currently only the Conversation mode was tested. 
     pub(crate) fn set_mode(&mut self, mode: RecognitionMode) -> &mut Self {
         self.mode = mode;
         self
     }
-
-
-    // use the ::<DetailedFormat|SimpleFormat> for defining the output format
+    
+    /// Set the output format of event responses. 
+    /// You will find the json in each event with Message.json() method. 
     pub fn set_output_format(&mut self, format: OutputFormat) -> &mut Self {
         self.output_format = format;
         self
@@ -113,6 +124,7 @@ impl ResolverConfig {
 
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+
 pub struct System {
     pub name: String,
     pub version: String,
