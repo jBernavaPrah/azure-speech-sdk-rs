@@ -109,7 +109,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "azure-speech"
-version = "0.0.1-alpha"
+version = "0.0.2-alpha"
 dependencies = [
  "clap",
  "cpal",
