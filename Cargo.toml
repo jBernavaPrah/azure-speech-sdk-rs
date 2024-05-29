@@ -8,7 +8,7 @@ rust-version = "1.71.0"
 license = "MIT"
 readme = "readme.md"
 repository = "https://github.com/jbernavaprah/azure-speech"
-homepage = "https://ferrilab.github.io/ferrilab"
+homepage = "https://github.com/jbernavaprah/azure-speech"
 include = [
     "Cargo.toml",
     "readme.md",
