@@ -17,7 +17,7 @@ As the library is not yet published on crates.io, you can install it by adding t
 
 ```toml
 [dependencies]
-azure_speech = { git = "https://github.com/jBernavaPrah/azure-speech.git" }
+azure_speech = { version = "^0" }
 ```
 
 ## Usage
