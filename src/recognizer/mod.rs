@@ -17,12 +17,12 @@ use crate::recognizer::client::recognize;
 use crate::recognizer::config::ResolverConfig;
 
 /// Recognize the speech from the given source.
-pub async fn speech<T: Sample>
+pub async fn speech
 (
     config: ResolverConfig,
-    source: Source<T>,
-) -> crate::errors::Result<Receiver<Event<speech::EventSpeech>>>
-    where T: Sample {
-    let (_, event_rx) = recognize::<speech::EventSpeech, T>(config, source).await?;
+    source: Source,
+) -> crate::Result<Receiver<Event<speech::EventSpeech>>>
+{
+    let (_, event_rx) = recognize::<speech::EventSpeech>(config, source).await?;
     Ok(event_rx)
 }

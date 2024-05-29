@@ -9,10 +9,9 @@ use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::Message as TMessage;
 use crate::connector::message::Message;
-use crate::errors::Result;
 
 
-pub(crate) async fn connect<R>(request: R) -> Result<(Sender<Message>, Receiver<Message>)>
+pub(crate) async fn connect<R>(request: R) -> crate::Result<(Sender<Message>, Receiver<Message>)>
     where R: IntoClientRequest + Unpin {
     let (ws, res) = connect_async(request).await?;
 
@@ -30,7 +29,7 @@ pub(crate) async fn connect<R>(request: R) -> Result<(Sender<Message>, Receiver<
 }
 
 
-async fn send_message(mut sender: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, TMessage>, mut rx: Receiver<Message>) -> Result<()> {
+async fn send_message(mut sender: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, TMessage>, mut rx: Receiver<Message>) -> crate::Result<()> {
     while let Some(message) = rx.recv().await {
         match message {
             Message::Text { .. } => {
@@ -49,7 +48,7 @@ async fn send_message(mut sender: SplitSink<WebSocketStream<MaybeTlsStream<TcpSt
     Ok(())
 }
 
-async fn receive_message(mut receiver: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>, tx: Sender<Message>) -> Result<()> {
+async fn receive_message(mut receiver: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>, tx: Sender<Message>) -> crate::Result<()> {
     while let Some(message) = receiver.next().await {
         match message {
             Ok(message) => {

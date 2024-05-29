@@ -7,11 +7,11 @@ use crate::recognizer::event::{CancelledReason, EventError, FromMessage};
 use crate::recognizer::event::{EventBase, Event};
 use crate::recognizer::config::ResolverConfig;
 use crate::recognizer::Source;
-use crate::recognizer::Sample;
 use crate::recognizer::utils::{create_speech_audio_headers_message, create_speech_audio_message, create_speech_config_message, create_speech_context_message, generate_uri_for_stt_speech_azure};
 
-pub async fn recognize<T, S: Sample>(config: ResolverConfig, source: Source<S>) -> crate::errors::Result<(Sender<Event<T>>, Receiver<Event<T>>)>
-    where T: Send + FromMessage<T> + 'static {
+pub async fn recognize<T>(config: ResolverConfig, source: Source) -> crate::Result<(Sender<Event<T>>, Receiver<Event<T>>)>
+    where T: Send + FromMessage<T> + 'static,
+{
     {
         let (event_tx, event_rx) = tokio::sync::mpsc::channel(1024);
 
@@ -40,8 +40,8 @@ pub async fn recognize<T, S: Sample>(config: ResolverConfig, source: Source<S>) 
 }
 
 
-async fn upstream_audio<S>(uuid: Uuid, config: ResolverConfig, mut source: Source<S>, upstream_sender: Sender<Message>) -> crate::errors::Result<()>
-    where S: Sample
+async fn upstream_audio(uuid: Uuid, config: ResolverConfig, mut source: Source, upstream_sender: Sender<Message>) -> crate::Result<()>
+
 {
 
     // send config
@@ -57,11 +57,8 @@ async fn upstream_audio<S>(uuid: Uuid, config: ResolverConfig, mut source: Sourc
     // buffer length is 4kb
     let mut buffer: Vec<u8> = Vec::with_capacity(4096);
 
-    while let Some(data) = source.next().await {
-
-        for d in data {
-            buffer.extend_from_slice(&d.to_le_bytes());
-        }
+    while let Some(data) = source.stream.recv().await {
+        buffer.extend_from_slice(data.to_bytes().as_ref());
 
         if buffer.len() < 4096 {
             continue;

@@ -5,7 +5,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::connector::message::Message;
 use crate::recognizer::config::{OutputFormat, ResolverConfig};
 use crate::recognizer::{Source, WavSpec};
-use crate::recognizer::source::Sample;
 use crate::utils::get_azure_hostname_from_region;
 
 /// Generates the URI for Azure's Speech to Text service.
@@ -57,7 +56,7 @@ pub(crate) fn generate_uri_for_stt_speech_azure(config: &ResolverConfig) -> Stri
 /// # Returns
 ///
 /// * A Message struct containing the speech configuration message.
-pub(crate) fn create_speech_config_message<T:Sample>(session_id: Uuid, config: &ResolverConfig, source: &Source<T>) -> Message {
+pub(crate) fn create_speech_config_message(session_id: Uuid, config: &ResolverConfig, source: &Source) -> Message {
     let system = json!({
         "name": config.system.name,
         "version": config.system.version,
@@ -224,21 +223,22 @@ pub(crate) fn create_speech_audio_message(session_id: Uuid, data: Option<Vec<u8>
 
 #[cfg(test)]
 mod tests {
+    use hound::WavSpec;
     use crate::auth::Auth;
     use crate::recognizer::config::{Os, System, LanguageDetectMode, OutputFormat, Profanity, ResolverConfig};
     use crate::recognizer::utils::{generate_uri_for_stt_speech_azure};
     use serde_json::Value;
     use uuid::Uuid;
-    use crate::recognizer::{AudioFormat, Details, Headers, Source};
+    use crate::recognizer::{Details, Source};
 
     #[test]
     fn test_create_speech_config_message() {
-        let (_, rx) = tokio::sync::mpsc::channel(1024);
-        let source = Source::new(rx, Headers {
-            sample_rate: 16000,
+        
+        let (source, _) = Source::new( WavSpec {
+            sample_format: hound::SampleFormat::Int,
             bits_per_sample: 16,
             channels: 1,
-            format: AudioFormat::PCM,
+            sample_rate: 16000,
         }, Details::unknown());
 
         let mut config = ResolverConfig::new(Auth::from_subscription("westus", "my_subscription"));
@@ -303,11 +303,12 @@ mod tests {
     fn test_create_speech_audio_headers_message() {
         let session_id = Uuid::new_v4();
 
-        let audio_headers = Headers {
-            sample_rate: 16000,
+        let audio_headers = WavSpec {
+            sample_format: hound::SampleFormat::Int,
             bits_per_sample: 16,
             channels: 1,
-            format: AudioFormat::PCM,
+            sample_rate: 16000,
+
         };
 
         let message = crate::recognizer::utils::create_speech_audio_headers_message(session_id, "audio/x-wav".to_string(), audio_headers.clone());
@@ -324,7 +325,7 @@ mod tests {
                 assert_eq!(data.is_some(), true);
 
                 // test data
-                let audio_headers_vec: Vec<u8> = audio_headers.into();
+                let audio_headers_vec: Vec<u8> = audio_headers.into_header_for_infinite_file();
                 assert_eq!(data.unwrap(), audio_headers_vec);
             }
             _ => panic!("Expected Binary message")
@@ -371,7 +372,6 @@ mod tests {
 
     #[test]
     fn generate_uri_for_stt_speech_azure_generates_correct_uri_for_us_region() {
-        
         let mut config = ResolverConfig::new(Auth::from_subscription("westus", "my_subscription"));
         config.set_detect_languages(vec![String::from("en-us"), String::from("it-it")], LanguageDetectMode::Continuous);
         config.set_output_format(OutputFormat::Detailed);
@@ -397,7 +397,6 @@ mod tests {
 
     #[test]
     fn generate_uri_for_stt_speech_azure_generates_correct_uri_for_china_region() {
-        
         let config = ResolverConfig::new(Auth::from_subscription("chinaeast", "my_subscription"));
         let uri = generate_uri_for_stt_speech_azure(&config);
         assert!(uri.starts_with("wss://chinaeast.stt.speech.azure.cn"));
@@ -405,7 +404,6 @@ mod tests {
 
     #[test]
     fn generate_uri_for_stt_speech_azure_generates_correct_uri_for_usgov_region() {
-        
         let config = ResolverConfig::new(Auth::from_subscription("usgovwest", "my_subscription"));
 
         let uri = generate_uri_for_stt_speech_azure(&config);
@@ -414,7 +412,6 @@ mod tests {
 
     #[test]
     fn generate_uri_for_stt_speech_azure_generates_correct_uri_for_multiple_languages() {
-        
         let mut config = ResolverConfig::new(Auth::from_subscription("westus", "my_subscription"));
         config.set_detect_languages(vec![String::from("en-us"), String::from("es-es")], LanguageDetectMode::Continuous);
         let uri = generate_uri_for_stt_speech_azure(&config);

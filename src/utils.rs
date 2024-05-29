@@ -1,3 +1,5 @@
+
+
 pub(crate) fn get_azure_hostname_from_region(region: &String) -> String {
     if region.contains("china") { return String::from(".azure.cn"); }
     if region.to_lowercase().starts_with("usgov") { return String::from(".azure.us"); }

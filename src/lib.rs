@@ -34,4 +34,9 @@ mod connector;
 mod auth;
 mod utils;
 
+use std::result;
 pub use auth::Auth;
+use crate::errors::Error;
+
+/// Result type for the library.
+pub type Result<T> = result::Result<T, Error>;

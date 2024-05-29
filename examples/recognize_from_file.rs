@@ -1,8 +1,7 @@
-use std::{env, io, path};
-use hound::{Sample, WavReader, WavWriter};
+use std::{env, path};
+use hound::{WavReader};
 use log::{info, LevelFilter};
 use simplelog::{ColorChoice, Config, TerminalMode, TermLogger};
-use tokio::sync::mpsc::Sender;
 use azure_speech::{Auth, recognizer};
 use azure_speech::errors::Error;
 use azure_speech::recognizer::{Details, Event, EventBase, Source};
@@ -11,10 +10,10 @@ use azure_speech::recognizer::speech::EventSpeech;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    
+
     // Initialize the logger
     TermLogger::init(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).unwrap();
-    
+
     // Configure the resolver 
     let mut config = ResolverConfig::new(Auth::from_subscription(
 
@@ -30,15 +29,14 @@ async fn main() -> Result<(), Error> {
     // ...
 
 
-
     // Create a source for recognizer. This will be used to send the audio data to the recognizer
-    let source = create_source_from_file("examples/audios/whatstheweatherlike.wav");
+    let source = create_source_from_file("tests/audios/whatstheweatherlike.wav");
     let mut stream = recognizer::speech(config, source).await?;
 
     while let Some(r) = stream.recv().await {
         match r {
             // Base Events are associated with Event
-            Event::Base(EventBase::Cancelled { reason}) => {
+            Event::Base(EventBase::Cancelled { reason }) => {
                 info!("Cancelled {:?}", reason);
                 break;
             }
@@ -51,7 +49,7 @@ async fn main() -> Result<(), Error> {
                 info!("SessionStopped: {:?}", session_id);
                 break;
             }
-            
+
             Event::Specific(EventSpeech::UnMatch { raw }) => {
                 info!("UnMatch: {:?}", raw);
             }
@@ -71,35 +69,36 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn create_source_from_file<P: AsRef<path::Path>>(filename: P) -> Source {
-    
-    let file = WavReader::open(filename).expect("Error opening file");
-    
-    let (source_tx, source_rx) = tokio::sync::mpsc::channel(1024);
-    
-    let source = Source::new(source_rx, file.spec().into(), Details::file());
+fn create_source_from_file<P: AsRef<path::Path>>(filename: P) -> Source
+{
+    let mut file = WavReader::open(filename).expect("Error opening file");
 
-    // Read the audio data from the file and send it to the channel
-    async fn read_from_file<S, R>(mut reader: WavReader<R>, sender: Sender<Vec<u8>>)
-        where S: Sample + funty::Numeric + Send + 'static,
-              R: io::Read,
-              <S as funty::Numeric>::Bytes: AsRef<[u8]>, {
-        while let Some(sample) = reader.samples::<S>().next() {
-            let s = S::from(sample.expect("Error reading sample"));
-            sender.send(s.to_le_bytes().as_ref().to_vec()).await.unwrap();
+    let (source, sender) = Source::new(file.spec().into(), Details::file());
+    tokio::spawn(async move {
+        let bits_per_sample = file.spec().bits_per_sample;
+        let sample_format = file.spec().sample_format;
+
+        match (sample_format, bits_per_sample) {
+            (hound::SampleFormat::Int, 16) => {
+                for s in file.samples::<i16>().filter_map(Result::ok) {
+                    sender.send(recognizer::Sample::from(s)).await.unwrap();
+                }
+            }
+            (hound::SampleFormat::Int, 32) => {
+                for s in file.samples::<i32>().filter_map(Result::ok) {
+                    sender.send(recognizer::Sample::from(s)).await.unwrap();
+                }
+            }
+
+            (hound::SampleFormat::Float, 32) => {
+                for s in file.samples::<f32>().filter_map(Result::ok) {
+                    sender.send(recognizer::Sample::from(s)).await.unwrap();
+                }
+            }
+            _ => panic!("Unsupported sample format")
         }
-    }
-
-    // Spawn a task to read the file and push the data to the channel 
-    let format = file.spec().sample_format;
-    match format {
-        hound::SampleFormat::Float => tokio::spawn(read_from_file::<f32, _>(file, source_tx)),
-        hound::SampleFormat::Int => tokio::spawn(read_from_file::<i32, _>(file, source_tx)),
-    };
-    
+    });
     source
-    
-    
 }
 
 

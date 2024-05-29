@@ -11,25 +11,50 @@ pub enum EventSpeech {
     /// Recognized event. 
     /// Contains the recognized text, the offset, the duration, the primary language and the speaker id (if activated).
     Recognized {
+        /// The recognized text.
         text: String,
+        /// The offset of the recognized text.
+        /// The offset is the time in milliseconds from the start of the conversation.
+        /// *Attention*: I'm not sure if this is the correct explanation.
         offset: u32,
+        /// The duration of the recognized text.
+        /// The duration is in milliseconds.
+        /// *Attention*: I'm not sure if this is correct.
         duration: u32,
+        /// The primary language of the recognized text.
         primary_language: PrimaryLanguage,
+        /// The speaker id of the recognized text.
+        /// This will be None if the speaker id is not activated.
         speaker_id: Option<String>,
-
+        /// The raw message.
         raw: Message,
     },
     /// Recognizing event.
     Recognizing {
+        /// The recognized text.
         text: String,
+        /// The offset of the recognized text.
+        /// The offset is the time in milliseconds from the start of the conversation.
+        /// *Attention*: I'm not sure if this is the correct explanation.
         offset: u32,
+        /// The duration of the recognized text.
+        /// The duration is in milliseconds.
+        /// *Attention*: I'm not sure if this is correct.
         duration: u32,
+        /// The primary language of the recognized text.
         primary_language: PrimaryLanguage,
+        /// The speaker id of the recognized text.
+        /// This will be None if the speaker id is not activated.
         speaker_id: Option<String>,
-
+        /// The raw message.
         raw: Message,
     },
-    UnMatch { raw: Message },
+    /// UnMatch event. 
+    /// This event is triggered when the speech recognition does not match any text.
+    UnMatch {
+        /// The raw message.
+        raw: Message
+    },
 }
 
 impl FromMessage<EventSpeech> for EventSpeech {

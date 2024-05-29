@@ -33,10 +33,30 @@ pub enum EventBase {
         /// The reason for the cancellation.
         reason: CancelledReason
     },
-    SpeechStartDetected { offset: u32 },
-    SpeechEndDetected { offset: u32 },
-    SessionStarted { session_id: Uuid },
-    SessionStopped { session_id: Uuid },
+    /// The speech recognition started.
+    SpeechStartDetected {
+        /// The offset of the speech recognition. 
+        /// The offset is the time in milliseconds from the start of the conversation.
+        /// *Attention*: I'm not sure if this is the correct explanation.
+        offset: u32
+    },
+    /// The speech recognition ended.
+    SpeechEndDetected {
+        /// The offset of the speech recognition.
+        /// The offset is the time in milliseconds from the start of the conversation.
+        /// *Attention*: I'm not sure if this is the correct explanation.
+        offset: u32
+    },
+    /// The session started.
+    SessionStarted {
+        /// The session id.
+        session_id: Uuid
+    },
+    /// The session stopped.
+    SessionStopped {
+        /// The session id.
+        session_id: Uuid
+    },
 }
 
 impl<T> FromMessage<T> for EventBase {

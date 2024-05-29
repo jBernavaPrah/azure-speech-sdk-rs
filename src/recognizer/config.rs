@@ -45,7 +45,7 @@ impl ResolverConfig {
             custom_models: None,
 
             system: System::default(),
-            os: Os::current(),
+            os: Os::default(),
         }
     }
 
@@ -109,6 +109,7 @@ impl ResolverConfig {
 
     /// Set the recognition mode. 
     /// Currently only the Conversation mode was tested. 
+    #[allow(dead_code)]
     pub(crate) fn set_mode(&mut self, mode: RecognitionMode) -> &mut Self {
         self.mode = mode;
         self
@@ -125,15 +126,21 @@ impl ResolverConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 
+/// System used to stream audio. 
+/// This is used by Azure service to provide better results.
 pub struct System {
+    #[allow(missing_docs)]
     pub name: String,
+    #[allow(missing_docs)]
     pub version: String,
+    #[allow(missing_docs)]
     pub build: String,
+    #[allow(missing_docs)]
     pub lang: String,
 }
 
-impl System {
-    pub fn default() -> Self {
+impl Default for System {
+    fn default() -> Self {
         System {
             name: env!("CARGO_PKG_NAME").to_string(),
             build: "rust".to_string(),
@@ -141,9 +148,12 @@ impl System {
             lang: "rust".to_string(),
         }
     }
+}
 
+impl System {
+    #[allow(missing_docs)]
     pub fn unknown() -> Self {
-        System {
+        Self {
             name: "Unknown".to_string(),
             build: "Unknown".to_string(),
             version: "Unknown".to_string(),
@@ -153,14 +163,18 @@ impl System {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// OS used to stream audio.
 pub struct Os {
+    #[allow(missing_docs)]
     pub platform: String,
+    #[allow(missing_docs)]
     pub name: String,
+    #[allow(missing_docs)]
     pub version: String,
 }
 
-impl Os {
-    pub fn current() -> Self {
+impl Default for Os {
+    fn default() -> Self {
         let os = os_info::get();
         Os {
             version: os.version().to_string(),
@@ -169,8 +183,12 @@ impl Os {
         }
     }
 
+}
+
+impl Os {
+    #[allow(missing_docs)]
     pub fn unknown() -> Self {
-        Os {
+        Self {
             version: "Unknown".to_string(),
             name: "Unknown".to_string(),
             platform: "Unknown".to_string(),
@@ -179,19 +197,21 @@ impl Os {
 }
 
 #[derive(Debug, Clone)]
+/// The configuration for the silence detection.
+/// Untested.
 pub struct Silence {
+    #[allow(missing_docs)]
     pub initial_timeout_ms: Option<i32>,
+    #[allow(missing_docs)]
     pub end_timeout_ms: Option<i32>,
+    #[allow(missing_docs)]
     pub segmentation_timeout_ms: Option<i32>,
 }
 
-#[derive(Debug, Clone)]
-pub struct AdvancedConfig {
-    pub word_level_timestamps: bool,
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+/// The recognition mode.
 pub enum RecognitionMode {
+    /// Use this mode for normal conversation.
     #[serde(rename = "conversation")]
     Conversation,
     /// Do not use this mode. It is not supported yet
@@ -215,8 +235,12 @@ impl RecognitionMode {
 
 
 #[derive(Debug, Clone, Eq, PartialEq)]
+/// The output format of the events. 
+/// After you set the outputFormat, Service will return in the raw Message.json() the Sample or Detailed version of the json.
 pub enum OutputFormat {
+    #[allow(missing_docs)]
     Simple,
+    #[allow(missing_docs)]
     Detailed,
 }
 
@@ -230,9 +254,13 @@ impl OutputFormat {
 }
 
 #[derive(Debug, Clone)]
+/// The profanity level.
 pub enum Profanity {
+    #[allow(missing_docs)]
     Masked,
+    #[allow(missing_docs)]
     Removed,
+    #[allow(missing_docs)]
     Raw,
 }
 
@@ -249,9 +277,12 @@ impl Profanity {
 
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+/// The primary language of the recognized text.
 pub enum LanguageDetectMode {
+    /// Detect the language at the start of the audio.
     #[serde(rename = "DetectContinuous")]
     Continuous,
+    /// Detect the language at the start of the audio.
     #[serde(rename = "DetectAtAudioStart")]
     AtStart,
 }
