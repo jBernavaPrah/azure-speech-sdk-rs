@@ -1,8 +1,13 @@
-# Azure Speech SDK - Rust Implementation (Unofficial)
+# Azure Speech SDK - Rust
 
-This is an unofficial, pure Rust library for working with the Azure Speech service. It is currently under development and not yet ready for production use. The library does not rely on any external dependencies.
+This is pure Rust library for working with the Azure Speech service.
 
-This project is heavily inspired by the official Azure Speech SDK for Typescript (https://github.com/microsoft/cognitive-services-speech-sdk-js). The goal is to provide an easy-to-install and simple-to-use interface for working with the Azure Speech service.
+The goal is to provide an easy-to-install and simple-to-use interface for working with the Azure Speech service.
+
+This project is inspired by the official Azure Speech SDK for Javascript (https://github.com/microsoft/cognitive-services-speech-sdk-js).
+
+**It is currently under development and not yet ready for production use.**
+I recommend using the Rust Azure Speech SDK (https://github.com/jabber-tools/cognitive-services-speech-sdk-rs) for production use in the meantime.
 
 ## Why This Library?
 
@@ -13,24 +18,26 @@ The motivation behind creating this library was twofold:
 
 ## Installation
 
-As the library is not yet published on crates.io, you can install it by adding the following to your `Cargo.toml` file:
+Use the following command to add the library to your project:
 
+```bash
+  cargo add azure_speech
+```
+
+Add the following to your `Cargo.toml` file:
 ```toml
 [dependencies]
-azure_speech = { version = "^0" }
+# ....
+azure_speech = { version = "0.1" }
 ```
 
 ## Usage
 For usage examples, please refer to the examples folder in the repository.  
 
 ## Contributing
-We welcome contributions! Feel free to submit PRs and raise issues. Your feedback and contributions can help shape the development of this library.  
+Feel free to submit PRs and raise issues. Your feedback and contributions can help shape the development of this library.  
 
 ## Support
 If you find this project useful, please consider giving it a star on GitHub. 
 
-This helps us know that people are interested and appreciate the work we're doing.  
-
-Please note that this library is still a work in progress. We recommend using the Rust Azure Speech SDK (https://github.com/jabber-tools/cognitive-services-speech-sdk-rs) for production use in the meantime. 
-
-Thank you for your interest in our project!
+This helps me know that people are interested.  
