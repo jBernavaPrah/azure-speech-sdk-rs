@@ -11,7 +11,7 @@ use symphonia::core::probe::Hint;
 use tokio::sync::mpsc::Receiver;
 use tokio_util::bytes::Buf;
 use azure_speech::{Auth, recognizer};
-use azure_speech::recognizer::{Details, Event, EventBase, Sample, SampleFormat, Source, WavSpec};
+use azure_speech::recognizer::{Details, Event, EventBase, Sample, SampleFormat, Audio, WavSpec};
 use azure_speech::recognizer::config::{LanguageDetectMode, ResolverConfig};
 use azure_speech::recognizer::speech::EventSpeech;
 
@@ -61,7 +61,7 @@ async fn main() {
     info!("Done main service!");
 }
 
-async fn create_source(audio_source: Receiver<Vec<u8>>) -> Source {
+async fn create_source(audio_source: Receiver<Vec<u8>>) -> Audio {
     let test_buff = MyMediaSource::new(audio_source);
     let mss = MediaSourceStream::new(Box::new(test_buff), Default::default());
     let mut hint = Hint::new();
@@ -76,7 +76,7 @@ async fn create_source(audio_source: Receiver<Vec<u8>>) -> Source {
     let mut decoder = symphonia::default::get_codecs().make(&track.codec_params, &DecoderOptions::default()).unwrap();
     let track_id = track.id;
 
-    let (source, sender) = Source::new(WavSpec {
+    let (source, sender) = Audio::new(WavSpec {
         sample_rate: track.codec_params.sample_rate.unwrap(),
         channels: track.codec_params.channels.unwrap().count() as u16,
         bits_per_sample: 32,

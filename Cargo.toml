@@ -7,8 +7,8 @@ edition = "2021"
 rust-version = "1.71.0"
 license = "MIT"
 readme = "readme.md"
-repository = "https://github.com/jbernavaprah/azure-speech"
-homepage = "https://github.com/jbernavaprah/azure-speech"
+repository = "https://github.com/jbernavaprah/rs-azure-speech"
+homepage = "https://github.com/jbernavaprah/rs-azure-speech"
 include = [
     "Cargo.toml",
     "readme.md",
@@ -27,26 +27,32 @@ keywords = [
 ]
 
 [dependencies]
-tokio = { version = "1.36.0", features = ["rt-multi-thread", "sync", "fs"] }
-tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
-futures-util = "0.3.30"
+tokio = { version = "1.36.0", features = ["sync"] }
+tracing = "0.1"
+ezsockets = { version = "0.6", features = ["native-tls", "native_client"] }
+async-trait = "0.1"
+async-broadcast = { version = "0.7.1" }
+tokio-stream = "0.1.15"
+pin-project-lite = "0.2.14"
+
 url = { version = "2", features = ["serde"] }
 uuid = { version = "1.7.0", features = ["v4", "fast-rng"] }
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.114"
 os_info = "3"
-log = "0.4.21"
 hound = "3.5"
-
-
+cpal = "0.15.3"
+ssml = "0.1.0"
+rodio = { version = "0.19.0", features = ["symphonia", "symphonia-all"], default-features = false }
 
 [dev-dependencies]
 tokio = { version = "1.36.0", features = ["full"] }
 simplelog = "0.12.2"
-clap = { version = "4.5.3", features = ["derive"] }
-cpal = "0.15.3"
-symphonia = { version = "0.5.4", features = ["all", "opt-simd"] }
+
 reqwest = { version = "0.12", features = ["blocking", "stream"] }
 iobuffer = "0.2.0"
-futures = "0.3.30"
 tokio-util = "0.7.10"
+tracing = "0.1.40"
+tracing-glog = "0.4"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-test = "0.2"
