@@ -3,16 +3,11 @@ mod config;
 mod event;
 mod message;
 mod client;
-mod voice;
-mod language;
-
+mod ssml;
+mod audio_format;
+pub use audio_format::*;
 pub use config::*;
 pub use client::*;
-pub use language::*;
-pub use voice::*;
+pub use ssml::*;
+pub use event::*;
 
-pub(crate) use event::*;
-
-pub mod ssml {
-    pub use ssml::*;
-}

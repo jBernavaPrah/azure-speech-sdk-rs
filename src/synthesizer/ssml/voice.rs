@@ -130,7 +130,7 @@
 //             ["zu-ZA"]: "zu-ZA-ThandoNeural",
 //         };  
 
-use crate::synthesizer::language::Language;
+use crate::synthesizer::ssml::Language;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Voice {

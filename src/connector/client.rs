@@ -1,38 +1,99 @@
 use async_trait::async_trait;
 use ezsockets::{ClientConfig, CloseCode, CloseFrame, Error};
-use async_broadcast::{Receiver, Sender};
+use tokio::sync::broadcast;
+use tokio::sync::oneshot;
 use ezsockets::client::ClientCloseMode;
-use crate::message::Message;
+use tokio_stream::wrappers::BroadcastStream;
+use crate::connector::message::Message;
 
-pub type Client = ezsockets::Client<BaseClient>;
 
-pub struct BaseClient {
-    handle: ezsockets::Client<Self>,
-    sender: Sender<crate::Result<Message>>,
-    ready: Option<tokio::sync::oneshot::Sender<()>>,
+#[derive(Clone)]
+pub(crate) struct Client {
+    handle: ezsockets::Client<BaseClient>,
 }
 
-impl BaseClient {
-    pub fn new(handle: ezsockets::Client<Self>,
-               sender: Sender<crate::Result<Message>>,
-               ready: tokio::sync::oneshot::Sender<()>) -> Self {
-        Self { handle, sender, ready: Some(ready) }
+impl Client {
+    /// Create a new client.
+    pub(crate) fn new(handle: ezsockets::Client<BaseClient>) -> Self {
+        Self { handle }
+    }
+}
+impl Client {
+    /// Send a text message to the server.
+    pub(crate) fn send_text(&self, text: impl Into<String>) -> crate::Result<()> {
+        self.handle.text(text)?;
+        Ok(())
+    }
+
+    /// Send a binary message to the server.
+    pub(crate) fn send_binary(&self, bytes: impl Into<Vec<u8>>) -> crate::Result<()> {
+        self.handle.binary(bytes)?;
+        Ok(())
+    }
+
+    /// Stream messages from the server.
+    pub(crate) async fn stream(&self) -> crate::Result<BroadcastStream<crate::Result<Message>>> {
+        self.handle.call_with(Call::Subscribe).await
+            .map_or(Err(crate::Error::InternalError("Failed to subscribe to messages".to_string())), |rx| Ok(BroadcastStream::new(rx)))
     }
 }
 
-pub enum Call {
+impl Client {
+    pub(crate) async fn connect(config: ClientConfig) -> crate::Result<Self> {
+        let (await_connection_tx, await_connection_rx) = oneshot::channel::<()>();
+        let (client, future) = ezsockets::connect(|client| BaseClient::new(client, await_connection_tx), config).await;
+
+        tokio::select! {
+            _ = await_connection_rx => {
+                tracing::debug!("Client is ready to send messages");
+                Ok(Client::new(client))
+            }
+            _ = future => {
+                tracing::error!("Connection closed before the client was ready to send messages");
+                Err(crate::Error::ServerDisconnect("Connection closed before the client was ready to send messages".to_string()))
+            }
+        }
+    }
+
+    /// Disconnect the client.
+    pub(crate) async fn disconnect(self) -> crate::Result<()> {
+        let _ = self.handle.close(None)?;
+        Ok(())
+    }
+}
+
+pub(crate) enum Call {
     Text(String),
     Binary(Vec<u8>),
+
+    Subscribe(async_channel::Sender<broadcast::Receiver<crate::Result<Message>>>),
 }
+
+pub(crate) struct BaseClient {
+    handle: ezsockets::Client<Self>,
+    messages: broadcast::Sender<crate::Result<Message>>,
+    ready: Option<oneshot::Sender<()>>,
+}
+
+impl BaseClient {
+    pub(crate) fn new(handle: ezsockets::Client<Self>,
+                      ready: oneshot::Sender<()>) -> Self {
+        let (sender, _) = broadcast::channel(10);
+        Self { handle, messages: sender, ready: Some(ready) }
+    }
+}
+
 
 #[async_trait]
 impl ezsockets::ClientExt for BaseClient {
     type Call = Call;
 
     async fn on_text(&mut self, text: String) -> Result<(), Error> {
+        tracing::debug!("Received text: {:?}", text);
+
         return match text.try_into() {
             Ok(value) => {
-                self.sender.broadcast(Ok(value)).await?;
+                self.messages.send(Ok(value))?;
                 Ok(())
             }
             _ => Err(Error::from("Error parsing text".to_string())),
@@ -40,9 +101,11 @@ impl ezsockets::ClientExt for BaseClient {
     }
 
     async fn on_binary(&mut self, bytes: Vec<u8>) -> Result<(), Error> {
+        tracing::debug!("Received binary: {:?}", bytes.len());
+        tracing::trace!("Received Binary data: {:?}", bytes);
         return match bytes.try_into() {
             Ok(value) => {
-                self.sender.broadcast(Ok(value)).await?;
+                self.messages.send(Ok(value))?;
                 Ok(())
             }
             _ => Err(Error::from("Error parsing bytes".to_string())),
@@ -51,8 +114,15 @@ impl ezsockets::ClientExt for BaseClient {
 
     async fn on_call(&mut self, call: Self::Call) -> Result<(), Error> {
         match call {
-            Call::Text(text) => self.handle.text(text)?,
-            Call::Binary(bytes) => self.handle.binary(bytes)?,
+            Call::Text(text) => {
+                let _ = self.handle.text(text)?;
+            }
+            Call::Binary(bytes) => {
+                let _ = self.handle.binary(bytes)?;
+            }
+            Call::Subscribe(respond_to) => {
+                let _ = respond_to.send(self.messages.subscribe()).await?;
+            }
         };
         Ok(())
     }
@@ -79,7 +149,7 @@ impl ezsockets::ClientExt for BaseClient {
                     }
                     _ => {
                         tracing::debug!("Sending server error message...");
-                        self.sender.broadcast(Err(crate::Error::ServerDisconnect(reason.clone().to_string()))).await?;
+                        self.messages.send(Err(crate::Error::ServerDisconnect(reason.clone().to_string())))?;
                         tracing::debug!("Closing...");
                         ClientCloseMode::Close
                     }
@@ -93,23 +163,4 @@ impl ezsockets::ClientExt for BaseClient {
             }
         }
     }
-}
-
-pub(crate) async fn connect(config: ClientConfig) -> (Client, Receiver<crate::Result<Message>>) {
-    let (sender, receiver) = async_broadcast::broadcast(100);
-    let (await_connection_tx, await_connection_rx) = tokio::sync::oneshot::channel::<()>();
-
-    let (client, future) = ezsockets::connect(|client| BaseClient::new(client, sender, await_connection_tx), config).await;
-
-    tokio::spawn(async move {
-        tracing::debug!("Inside the connection task");
-        let _ = future.await;
-
-        tracing::debug!("Connection closed");
-    });
-
-    // todo: await the connection and handle any error could arise. 
-    let _ = await_connection_rx.await;
-
-    (client, receiver)
 }

@@ -27,12 +27,12 @@ keywords = [
 ]
 
 [dependencies]
-tokio = { version = "1.36.0", features = ["sync"] }
+tokio = { version = "=1.38", features = ["sync"] }
 tracing = "0.1"
 ezsockets = { version = "0.6", features = ["native-tls", "native_client"] }
 async-trait = "0.1"
 async-broadcast = { version = "0.7.1" }
-tokio-stream = "0.1.15"
+tokio-stream = { version = "0.1", features = ["sync"] }
 pin-project-lite = "0.2.14"
 
 url = { version = "2", features = ["serde"] }
@@ -43,11 +43,14 @@ os_info = "3"
 hound = "3.5"
 cpal = "0.15.3"
 ssml = "0.1.0"
-rodio = { version = "0.19.0", features = ["symphonia", "symphonia-all"], default-features = false }
+async-channel = "1.9.0"
+
 
 [dev-dependencies]
 tokio = { version = "1.36.0", features = ["full"] }
 simplelog = "0.12.2"
+
+rodio = { version = "0.19.0", features = ["symphonia", "symphonia-all"], default-features = false }
 
 reqwest = { version = "0.12", features = ["blocking", "stream"] }
 iobuffer = "0.2.0"

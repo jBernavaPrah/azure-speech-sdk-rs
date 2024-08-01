@@ -2,13 +2,14 @@ use serde::{Deserialize};
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 /// Event for the speech recognition
-pub enum EventSynthesis {
-    SynthesisStarted,
+pub enum Event {
+    Started,
 
-    SynthesisCancelled(crate::Error),
-    SynthesisCompleted,
+    Cancelled(crate::Error),
+    Completed,
     
     AudioMetadata(String),
 
-    Synthesizing(Vec<u8>),
+    /// Raw Audio Chunk from the synthesizer.
+    Audio(Vec<u8>),
 }
