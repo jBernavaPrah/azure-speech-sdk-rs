@@ -8,7 +8,7 @@ use crate::connector::message::Message;
 
 
 #[derive(Clone)]
-pub(crate) struct Client {
+pub struct Client {
     handle: ezsockets::Client<BaseClient>,
 }
 
@@ -20,19 +20,19 @@ impl Client {
 }
 impl Client {
     /// Send a text message to the server.
-    pub(crate) fn send_text(&self, text: impl Into<String>) -> crate::Result<()> {
+    pub fn send_text(&self, text: impl Into<String>) -> crate::Result<()> {
         self.handle.text(text)?;
         Ok(())
     }
 
     /// Send a binary message to the server.
-    pub(crate) fn send_binary(&self, bytes: impl Into<Vec<u8>>) -> crate::Result<()> {
+    pub fn send_binary(&self, bytes: impl Into<Vec<u8>>) -> crate::Result<()> {
         self.handle.binary(bytes)?;
         Ok(())
     }
 
     /// Stream messages from the server.
-    pub(crate) async fn stream(&self) -> crate::Result<BroadcastStream<crate::Result<Message>>> {
+    pub async fn stream(&self) -> crate::Result<BroadcastStream<crate::Result<Message>>> {
         self.handle.call_with(Call::Subscribe).await
             .map_or(Err(crate::Error::InternalError("Failed to subscribe to messages".to_string())), |rx| Ok(BroadcastStream::new(rx)))
     }
@@ -78,7 +78,7 @@ pub(crate) struct BaseClient {
 impl BaseClient {
     pub(crate) fn new(handle: ezsockets::Client<Self>,
                       ready: oneshot::Sender<()>) -> Self {
-        let (sender, _) = broadcast::channel(10);
+        let (sender, _) = broadcast::channel(1024*5);
         Self { handle, messages: sender, ready: Some(ready) }
     }
 }
@@ -143,7 +143,7 @@ impl ezsockets::ClientExt for BaseClient {
         match frame {
             Some(CloseFrame { code, reason }) => {
                 let mode = match code {
-                    CloseCode::Restart | CloseCode::Again => {
+                    CloseCode::Restart | CloseCode::Again | CloseCode::Normal => {
                         tracing::debug!("Reconnecting...");
                         ClientCloseMode::Reconnect
                     }

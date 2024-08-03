@@ -3,13 +3,13 @@ use serde::{Deserialize};
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 /// Event for the speech recognition
 pub enum Event {
-    Started,
-
-    Cancelled(crate::Error),
-    Completed,
+    SessionStarted,
+    SessionEnded,
     
     AudioMetadata(String),
 
     /// Raw Audio Chunk from the synthesizer.
-    Audio(Vec<u8>),
+    Synthesising(Vec<u8>),
+    /// Synthesizing has finished.
+    Synthesised,
 }

@@ -1,24 +1,8 @@
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 use crate::config::Device;
-use crate::Error;
 use crate::synthesizer::AudioFormat;
 use crate::synthesizer::Language;
 use crate::synthesizer::ssml::Voice;
-
-//
-
-#[async_trait::async_trait]
-pub trait Callback
-{
-    async fn on_session_start(&self) -> () {}
-    async fn on_audio_chunk(&self, _audio_chunk: Vec<u8>) -> () {}
-    async fn on_audio_metadata(&self, _audio_metadata: String) -> () {}
-    async fn on_error(&self, _error: Error) -> () {}
-    async fn on_session_end(&self) -> () {}
-}
-
 
 #[derive(Clone, Default)]
 pub struct Config
@@ -27,8 +11,8 @@ pub struct Config
 
     pub(crate) device: Device,
 
-    pub(crate) voice: Voice,
     pub(crate) language: Language,
+    pub(crate) voice: Option<Voice>,
 
     pub(crate) bookmark_enabled: bool,
     pub(crate) word_boundary_enabled: bool,
@@ -39,7 +23,13 @@ pub struct Config
 
     pub(crate) auto_detect_language: bool,
 
-    //pub(crate) callbacks: Arc<Box<dyn Callback + Send>>,
+    pub(crate) on_session_started: Option<Arc<Box<dyn Fn() + Send + Sync + 'static>>>,
+    pub(crate) on_session_ended: Option<Arc<Box<dyn Fn() + Send + Sync + 'static>>>,
+    pub(crate) on_synthesising: Option<Arc<Box<dyn Fn(Vec<u8>) + Send + Sync + 'static>>>,
+    pub(crate) on_audio_metadata: Option<Arc<Box<dyn Fn(String) + Send + Sync + 'static>>>,
+    pub(crate) on_synthesised: Option<Arc<Box<dyn Fn() + Send + Sync + 'static>>>,
+    pub(crate) on_error: Option<Arc<Box<dyn Fn(crate::Error) + Send + Sync + 'static>>>,
+
 }
 
 
@@ -59,7 +49,7 @@ impl Config
     }
 
     pub fn with_voice(mut self, voice: Voice) -> Self {
-        self.voice = voice;
+        self.voice = Some(voice);
         self
     }
 
@@ -107,36 +97,52 @@ impl Config
         self.device = device;
         self
     }
-    // 
-    // pub fn on_session_start<Fut, F: Fn() -> Fut + Send + 'static>(mut self, f: F) -> Self
-    // where
-    //     Fut: Future<Output=()> + Send + 'static,
-    // {
-    //     self.on_session_start = Some(Arc::new(Box::new(move || Box::pin(f()))));
-    //     self
-    // }
-    // 
-    // pub fn on_audio_chunk<F: Fn(Vec<u8>) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + 'static>(mut self, f: F) -> Self
-    // {
-    //     self.on_audio_chunk = Some(Arc::new(Box::new(move |v| Box::pin(f(v)))));
-    //     self
-    // }
-    // 
-    // pub fn on_audio_metadata<F: Fn(String) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + 'static>(mut self, f: F) -> Self
-    // {
-    //     self.on_audio_metadata = Some(Arc::new(Box::new(f)));
-    //     self
-    // }
-    // 
-    // pub fn on_error<F: Fn(Error) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + 'static>(mut self, f: F) -> Self
-    // {
-    //     self.on_error = Some(Arc::new(Box::new(f)));
-    //     self
-    // }
-    // 
-    // pub fn on_session_end<F: Fn() -> Pin<Box<dyn Future<Output=()> + Send>> + Send + 'static>(mut self, f: F) -> Self
-    // {
-    //     self.on_session_end = Some(Arc::new(Box::new(f)));
-    //     self
-    // }
+
+    pub fn on_session_start<Func>(mut self, func: Func) -> Self
+    where
+        Func: Send + Sync + 'static + Fn(),
+    {
+        self.on_session_started = Some(Arc::new(Box::new(func)));
+        self
+    }
+
+    pub fn on_session_end<Func>(mut self, func: Func) -> Self
+    where
+        Func: Send + Sync + 'static + Fn(),
+    {
+        self.on_session_ended = Some(Arc::new(Box::new(func)));
+        self
+    }
+
+    pub fn on_synthesising<Func>(mut self, func: Func) -> Self
+    where
+        Func: Send + Sync + 'static + Fn(Vec<u8>),
+    {
+        self.on_synthesising = Some(Arc::new(Box::new(func)));
+        self
+    }
+
+    pub fn on_audio_metadata<Func>(mut self, func: Func) -> Self
+    where
+        Func: Send + Sync + 'static + Fn(String),
+    {
+        self.on_audio_metadata = Some(Arc::new(Box::new(func)));
+        self
+    }
+
+    pub fn on_synthesised<Func>(mut self, func: Func) -> Self
+    where
+        Func: Send + Sync + 'static + Fn(),
+    {
+        self.on_synthesised = Some(Arc::new(Box::new(func)));
+        self
+    }
+
+    pub fn on_error<Func>(mut self, func: Func) -> Self
+    where
+        Func: Send + Sync + 'static + Fn(crate::Error),
+    {
+        self.on_error = Some(Arc::new(Box::new(func)));
+        self
+    }
 }

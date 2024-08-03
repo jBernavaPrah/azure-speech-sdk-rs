@@ -1,6 +1,5 @@
-use tokio::sync::broadcast;
-use tokio_stream::{Stream, StreamExt as _, wrappers::BroadcastStream};
-use crate::StreamExt;
+use tokio_stream::{Stream, StreamExt as _};
+use crate::{StreamExt};
 use url::Url;
 use crate::auth::Auth;
 use crate::connector::Client as BaseClient;
@@ -13,7 +12,8 @@ use crate::utils::get_azure_hostname_from_region;
 #[derive(Clone)]
 pub struct Client
 {
-    client: BaseClient,
+    /// The client to send and receive messages.
+    pub client: BaseClient,
     config: Config,
 }
 
@@ -44,45 +44,88 @@ impl Client {
         self.client.disconnect().await
     }
 }
-impl Client {
-    pub async fn stream(&self) -> crate::Result<BroadcastStream<crate::Result<Message>>> {
-        self.client.stream().await
-    }
-}
 
 impl Client {
-    /// Stops the synthesizer.
-    pub fn stop(&self) -> crate::Result<()> {
-        unimplemented!("stop_speaking is not implemented yet");
+    /// Stops the synthesizing.
+    pub fn stop_synthesize(&self) -> crate::Result<()> {
+        //self.client.send_text(create_stop_speaking_message(self.config.uuid))
+        unimplemented!("stop")
     }
 
     pub async fn synthesize(&self, text: impl ToSSML) -> crate::Result<impl Stream<Item=crate::Result<Event>>> {
-        tracing::debug!("Sending a new ssml speak: {:?}", text);
-        let uuid = uuid::Uuid::new_v4();
-        let mut session = SynthesizerSession::new(uuid);
-        let config = self.config.clone();
-
-        self.client.send_text(create_speech_config_message(uuid, &self.config))?;
-
-        self.client.send_text(create_synthesis_context_message(uuid, &self.config))?;
-
-        let xml = text.to_ssml(self.config.language.clone(), self.config.voice.clone())?;
+        let xml = text.to_ssml(self.config.language.clone(), self.config.voice.clone().unwrap_or(self.config.language.default_voice()))?;
         tracing::debug!("Sending ssml message: {:?}", xml);
 
+        let uuid = uuid::Uuid::new_v4();
+        let mut session = SynthesizerSession::new(uuid);
+
+        // create first the stream.
+        // This is necessary to not lost any message after the sending.
+        // The stream will be used to filter out messages that are not from the current session.
+        let stream = self.client.stream().await?;
+
+        self.client.send_text(create_speech_config_message(uuid, &self.config))?;
+        self.client.send_text(create_synthesis_context_message(uuid, &self.config))?;
         self.client.send_text(create_ssml_message(uuid, xml))?;
 
-        Ok(self.stream().await?
-            .stop_after(|message| message.is_err())
+
+        let config = self.config.clone();
+        Ok(stream
+            // Filter out errors.
+            .map(move |message| match message {
+                Ok(message) => message,
+                Err(e) => Err(crate::Error::InternalError(e.to_string()))
+            })
+
+            // Filter out messages that are not from the current session.
+            .filter(move |message| match message {
+                Ok(message) => message.id == session.uuid.to_string(),
+                Err(_) => true
+            })
+            // Convert the message to an event.
             .filter_map(move |message| match message {
-                Ok(message) => Some(message),
+                Ok(message) => convert_message_to_event(message, &mut session),
+                Err(e) => Some(Err(e))
+            })
+            // Handle the events and call the callbacks.
+            .map(move |event| match event {
+                Ok(Event::SessionEnded) => {
+                    tracing::debug!("Session ended");
+                    config.on_session_ended.as_ref().map(|f| f());
+                    Ok(Event::SessionEnded)
+                }
+                Ok(Event::SessionStarted) => {
+                    tracing::debug!("Session started");
+                    config.on_session_started.as_ref().map(|f| f());
+                    Ok(Event::SessionStarted)
+                }
+
+                Ok(Event::Synthesising(audio)) => {
+                    tracing::debug!("Synthesising audio: {:?}", audio.len());
+                    config.on_synthesising.as_ref().map(|f| f(audio.clone()));
+                    Ok(Event::Synthesising(audio))
+                }
+
+                Ok(Event::Synthesised) => {
+                    tracing::debug!("Synthesised");
+                    config.on_synthesised.as_ref().map(|f| f());
+                    Ok(Event::Synthesised)
+                }
+
+                Ok(Event::AudioMetadata(metadata)) => {
+                    tracing::debug!("Audio metadata: {:?}", metadata);
+                    config.on_audio_metadata.as_ref().map(|f| f(metadata.clone()));
+                    Ok(Event::AudioMetadata(metadata))
+                }
+
                 Err(e) => {
-                    tracing::error!("Error in synthesizer stream: {:?}", e);
-                    None
+                    tracing::error!("Error: {:?}", e);
+                    config.on_error.as_ref().map(|f| f(e.clone()));
+                    Err(e)
                 }
             })
-            .filter_map(move |message| convert_message_to_event(message, &mut session, &config).transpose())
-            .merge(tokio_stream::iter(vec![Ok(Event::Started)]))
-            .stop_after(|event| event.is_err() || event.eq(&Ok(Event::Completed))))
+            // Stop the stream if there is an error or the session ended.
+            .stop_after(|event| event.is_err() || event.eq(&Ok(Event::SessionEnded))))
     }
 }
 
@@ -99,70 +142,53 @@ impl SynthesizerSession {
     }
 }
 
-fn convert_message_to_event(message: crate::Result<Message>, session: &mut SynthesizerSession, config: &Config) -> crate::Result<Option<Event>> {
-    match message {
-        Ok(message) => {
-            if message.id != session.uuid.to_string() {
-                return Ok(None);
+fn convert_message_to_event(message: Message, session: &mut SynthesizerSession) -> Option<crate::Result<Event>> {
+    match (message.path.as_str(), message.data.clone(), message.headers.clone()) {
+        ("turn.start", Data::Text(Some(data)), _) => {
+            let value = match serde_json::from_str::<message::TurnStart>(&data) {
+                Ok(value) => value,
+                Err(e) => return Some(Err(crate::Error::ParseError(e.to_string()))),
+            };
+
+            if let Some(webrtc) = value.webrtc {
+                session.webrtc_connection_string = Some(webrtc.connection_string);
             }
 
-            match (message.path.as_str(), message.data.clone(), message.headers.clone()) {
-                ("turn.start", Data::Text(Some(data)), _) => {
-                    let value = serde_json::from_str::<message::TurnStart>(&data)
-                        .map_err(|e| crate::Error::InternalError(e.to_string()))?;
-
-                    if let Some(webrtc) = value.webrtc {
-                        session.webrtc_connection_string = Some(webrtc.connection_string);
-                    }
-
-                    Ok(None)
-                }
-                ("response", Data::Text(Some(data)), _) => {
-                    let value = serde_json::from_str::<message::Response>(&data)
-                        .map_err(|e| crate::Error::InternalError(e.to_string()))?;
-
-                    session.stream_id = Some(value.audio.stream_id);
-                    Ok(None)
-                }
-                ("audio", Data::Binary(audio), headers) => {
-                    if audio.is_none() {
-                        return Ok(None);
-                    }
-
-
-                    let stream_id = session.stream_id.clone().unwrap_or_default();
-
-                    // todo: add headers to the audio data.
-
-                    let audio_header = config.output_format.header(audio.as_ref().unwrap());
-                    let mut data = audio.unwrap();
-                    // todo: append on the front headers to the audio data
-                    data.splice(0..0, audio_header);
-
-
-                    if headers.contains(&(STREAM_ID_HEADER.to_string(), stream_id)) {
-                        //config.on_audio_chunk.as_mut().map(|f| f(data.clone()));
-                        // TODO: Add callback onSynthesizing
-                        return Ok(Some(Event::Audio(data)));
-                    }
-
-                    Ok(None)
-                }
-                ("audio.metadata", Data::Text(Some(string)), _) => {
-                    //config.on_audio_metadata.as_mut().map(|f| f(string.clone()));
-                    // TODO: Add callback to metadata
-                    Ok(Some(Event::AudioMetadata(string)))
-                }
-                ("turn.end", _, _) => {
-                    //config.on_session_end.as_mut().map(|f| f());
-                    Ok(Some(Event::Completed))
-                }
-                _ => {
-                    tracing::warn!("Unknown message: {:?}", message);
-                    Ok(None)
-                }
-            }
+            Some(Ok(Event::SessionStarted))
         }
-        Err(e) => Err(e),
+        ("response", Data::Text(Some(data)), _) => {
+            let value = match serde_json::from_str::<message::Response>(&data) {
+                Ok(value) => value,
+                Err(e) => return Some(Err(crate::Error::ParseError(e.to_string()))),
+            };
+
+            session.stream_id = Some(value.audio.stream_id);
+            None
+        }
+        ("audio", Data::Binary(audio), headers) => {
+            if audio.is_none() {
+                return Some(Ok(Event::Synthesised));
+            }
+
+
+            let stream_id = session.stream_id.clone().unwrap_or_default();
+
+
+            if headers.contains(&(STREAM_ID_HEADER.to_string(), stream_id)) {
+                return Some(Ok(Event::Synthesising(audio.unwrap())));
+            }
+
+            None
+        }
+        ("audio.metadata", Data::Text(Some(string)), _) => {
+            Some(Ok(Event::AudioMetadata(string)))
+        }
+        ("turn.end", _, _) => {
+            Some(Ok(Event::SessionEnded))
+        }
+        _ => {
+            tracing::warn!("Unknown message: {:?}", message);
+            None
+        }
     }
 }

@@ -3,14 +3,14 @@ static CRLF: &str = "\r\n";
 static HEADER_JSON_SEPARATOR: &str = "\r\n\r\n";
 
 
-pub(crate) fn make_text_payload(headers: Vec<(String, String)>, data: Option<String>) -> String {
+pub fn make_text_payload(headers: Vec<(String, String)>, data: Option<String>) -> String {
     let headers = transform_headers_to_string(headers);
     let data = data.map_or(String::new(), |d| d);
 
     format!("{}{CRLF}{}", headers, data)
 }
 
-pub(crate) fn make_binary_payload(headers: Vec<(String, String)>, data: Option<Vec<u8>>) -> Vec<u8> {
+pub fn make_binary_payload(headers: Vec<(String, String)>, data: Option<Vec<u8>>) -> Vec<u8> {
     let headers = transform_headers_to_string(headers);
 
     let data_length = if let Some(ref d) = data {
@@ -33,7 +33,7 @@ pub(crate) fn make_binary_payload(headers: Vec<(String, String)>, data: Option<V
     payload
 }
 
-pub(crate) fn extract_headers_and_data_from_binary_message(data: Vec<u8>) -> Result<(Vec<(String, String)>, Option<Vec<u8>>), crate::Error> {
+pub fn extract_headers_and_data_from_binary_message(data: Vec<u8>) -> Result<(Vec<(String, String)>, Option<Vec<u8>>), crate::Error> {
     let header_length = ((data[0] as usize) << 8) + data[1] as usize;
     let headers = String::from_utf8(data[2..2 + header_length].to_vec())
         .map_err(|_| {
@@ -48,7 +48,7 @@ pub(crate) fn extract_headers_and_data_from_binary_message(data: Vec<u8>) -> Res
     Ok((explode_headers_message(headers.as_str()), data))
 }
 
-pub(super) fn extract_headers_and_data_from_text_message(text: String) -> Result<(Vec<(String, String)>, Option<String>), crate::Error> {
+pub fn extract_headers_and_data_from_text_message(text: String) -> Result<(Vec<(String, String)>, Option<String>), crate::Error> {
     let mut split_response = text.split(HEADER_JSON_SEPARATOR);
 
     let headers = explode_headers_message(split_response.next().unwrap_or_default());

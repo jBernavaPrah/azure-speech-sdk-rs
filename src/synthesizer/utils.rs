@@ -20,16 +20,27 @@ pub(crate) fn create_speech_config_message(session_id: Uuid,
     )
 }
 
+pub(crate) fn create_stop_speaking_message(session_id: Uuid) -> String {
+    make_text_payload(
+        vec![
+            ("X-RequestId".to_string(), session_id.to_string()),
+            ("Path".to_string(), "synthesis.control".to_string()),
+            ("Content-Type".to_string(), "application/json".to_string()),
+            ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
+        ],
+        Some(json!({"action": "stop"}).to_string()),
+    )
+}
+
 
 /// Creates a speech context message.
 pub(crate) fn create_synthesis_context_message(session_id: Uuid, config: &Config) -> String {
-    
     make_text_payload(vec![
         ("Content-Type".to_string(), "application/json".to_string()),
         ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
         ("X-RequestId".to_string(), session_id.to_string()),
         ("Path".to_string(), "synthesis.context".to_string()),
-    ],Some(json!({"synthesis":
+    ], Some(json!({"synthesis":
         {"audio":
             {"metadataOptions":
                 {
@@ -44,11 +55,9 @@ pub(crate) fn create_synthesis_context_message(session_id: Uuid, config: &Config
             },
             "language": {"autoDetection": config.auto_detect_language}
         }}).to_string()))
-    
 }
 
 pub(crate) fn create_ssml_message(session_id: Uuid, ssml: String) -> String {
-    
     make_text_payload(vec![
         ("Content-Type".to_string(), "application/ssml+xml".to_string()),
         ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),

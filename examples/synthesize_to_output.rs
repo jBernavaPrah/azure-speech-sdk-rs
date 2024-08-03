@@ -14,13 +14,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     let client = synthesizer::Client::connect(
+        // Add your Azure region and subscription key to the environment variables
         Auth::from_subscription(
             env::var("AZURE_REGION").expect("Region set on AZURE_REGION env"),
             env::var("AZURE_SUBSCRIPTION_KEY").expect("Subscription set on AZURE_SUBSCRIPTION_KEY env"),
         ),
+        // Set the configuration for the synthesizer
         synthesizer::Config::default()
             .with_output_format(synthesizer::AudioFormat::Audio16Khz128KBitRateMonoMp3)
-            .with_language(synthesizer::Language::AutoDetect),
+            .with_language(synthesizer::Language::ItIt)
+            .on_session_start(|| {
+                tracing::info!("Callback: Session started");
+            })
+            .on_session_end(|| {
+                tracing::info!("Callback: Session ended");
+            })
+            
+            
+        ,
     ).await.expect("to connect to azure");
 
     let (tx, rx) = tokio::sync::mpsc::channel(10);
@@ -42,11 +53,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             while let Some(data) = stream.next().await {
                 
                 match data {
-                    Ok(Event::Audio(audio)) => {
+                    Ok(Event::Synthesising(audio)) => {
                         println!("Event Data: {:?}", audio.len());
                         tx.send(Some(audio)).await.expect("send audio chunk");
                     }
-                    Ok(Event::Completed) | Ok(Event::Cancelled(_)) => {
+                    Ok(Event::SessionEnded) => {
                         println!("Event: {:?}", data);
                         tx.send(None).await.expect("send audio chunk");
                     }
@@ -80,33 +91,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     
     
     Ok(())
-    // pub async fn synthesize_to_output_device(&self, speaks_rx: Receiver<Speak>, _device: cpal::Device) -> crate::Result<()> {
-    //     let stream = self.synthesize(speaks_rx).await?;
-    // 
-    //     tokio::task::spawn_blocking::<_, crate::Result<()>>(move || {
-    //         let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
-    // 
-    //         let sink = rodio::Sink::try_new(&handle).unwrap();
-    // 
-    //         //let file = std::fs::File::open("tests/whatstheweatherlike.wav").unwrap();
-    // 
-    //         sink.append(rodio::Decoder::new(StreamMediaSource::new(stream.audio())).unwrap());
-    // 
-    //         sink.sleep_until_end();
-    // 
-    //         Ok(())
-    //     }).await.expect("to run blocking task")?;
-    // 
-    //     Ok(())
-    // }
-    // 
-    // pub async fn synthesize_to_default_output_device(&self, speaks_rx: Receiver<Speak>) -> crate::Result<()> {
-    //     let host = cpal::default_host();
-    //     let device = host.default_output_device()
-    //         .ok_or(crate::Error::InternalError("Failed to get default input device".to_string()))?;
-    // 
-    //     self.synthesize_to_output_device(speaks_rx, device).await
-    // }
 }
 
 

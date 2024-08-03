@@ -17,6 +17,12 @@ pub enum Error {
     ServerDisconnect(String),
 }
 
+impl From<serde_json::Error> for Error{
+    fn from(e: serde_json::Error) -> Self {
+        Error::ParseError(e.to_string())
+    }
+}
+
 impl From<&str> for Error {
     fn from(s: &str) -> Self {
         Error::InternalError(s.to_string())

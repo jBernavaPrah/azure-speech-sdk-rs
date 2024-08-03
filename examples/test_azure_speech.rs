@@ -27,10 +27,10 @@ async fn main() -> Result<(), Error> {
         match result {
             Ok(data) => {
                 match data {
-                    synthesizer::Event::Audio(data) => {
+                    synthesizer::Event::Synthesising(data) => {
                         tracing::info!("Audio data len {:?}", data.len());
                     }
-                    synthesizer::Event::Completed => {
+                    synthesizer::Event::SessionEnded => {
                         tracing::info!("Completed");
                         break;
                     }
