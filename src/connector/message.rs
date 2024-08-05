@@ -30,6 +30,7 @@ impl Message {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_header<I: Into<String> + Eq>(&self, key: I) -> Option<String> {
         let key = key.into();
         self.headers.iter().find(|(k, _)| k == &key).map(|(_, v)| v.clone())

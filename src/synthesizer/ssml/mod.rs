@@ -24,7 +24,7 @@ impl ToSSML for String {
 
 impl ToSSML for &String {
     fn to_ssml(&self, language: Language, voice: Voice) -> crate::Result<String> {
-        serialize_to_ssml(&ssml::speak(Some(language.as_str()), [ssml::voice(voice.as_str(), [self.clone()])]))
+        serialize_to_ssml(&ssml::speak(Some(language.as_str()), [ssml::voice(voice.as_str(), [self])]))
     }
 }
 

@@ -1,10 +1,11 @@
 use tokio_stream::{Stream, StreamExt as _};
 use url::Url;
-use crate::{Auth, Data, Message, StreamExt};
-use crate::recognizer::{Config, Details, Event, Language, message, Offset, OutputFormat, Recognized, wav};
+use crate::{Auth, Data, Message, stream_ext::StreamExt};
+use crate::recognizer::{Config, Details, Event, PrimaryLanguage, message, OutputFormat, Recognized};
 use crate::connector::Client as BaseClient;
+use crate::recognizer::content_type::ContentType;
 use crate::recognizer::session::Session;
-use crate::recognizer::utils::{create_speech_audio_headers_message, create_speech_audio_message, create_speech_config_message, create_speech_context_message};
+use crate::recognizer::utils::{create_audio_message, create_speech_config_message, create_speech_context_message};
 use crate::utils::get_azure_hostname_from_region;
 
 
@@ -63,7 +64,7 @@ impl Client {
 impl Client {
     /// Recognize audio from a stream.
     ///
-    pub async fn recognize<A>(&self, stream: A, wav_spec: wav::WavSpec, details: Details) -> crate::Result<impl Stream<Item=crate::Result<Event>>>
+    pub async fn recognize<A>(&self, stream: A, content_type: ContentType, details: Details) -> crate::Result<impl Stream<Item=crate::Result<Event>>>
     where
         A: Stream<Item=Vec<u8>> + Send + 'static,
     {
@@ -73,15 +74,14 @@ impl Client {
 
         let session = Session::new(uuid::Uuid::new_v4());
         let config = self.config.clone();
+        let request_id = session.request_id().to_string();
 
-        // todo: check if wav_spec is necessary in the configuration message. If not I will remove it, as it is already in the audio headers.
-        self.client.send_text(create_speech_config_message(session.request_id().to_string(), &config, &wav_spec, &details))?;
-        self.client.send_text(create_speech_context_message(session.request_id().to_string(), &config))?;
+        self.client.send_text(create_speech_config_message(request_id.clone(), &config, &details))?;
+        self.client.send_text(create_speech_context_message(request_id.clone(), &config))?;
 
-        // todo: check if this could be done directly pushing audio directly from the stream...
-        // So in case of wav audio, the first chunk will also contain the headers of the file. 
-        // and if the audio is not wav, then the first chunk will be the audio itself.
-        self.client.send_binary(create_speech_audio_headers_message(session.request_id().to_string(), "audio/x-wav", &wav_spec))?;
+        // Here I'm moving away from the original code.
+        // I'm not interest anymore in the audio headers, but in the content type of the stream.
+        self.client.send_binary(create_audio_message(request_id.clone(), Some(content_type), None))?;
 
         let client = self.client.clone();
         let session1 = session.clone();
@@ -96,7 +96,8 @@ impl Client {
             while let Some(chunk) = audio.next().await {
                 buffer.extend(chunk);
                 while buffer.len() >= BUFFER_SIZE {
-                    if let Err(e) = client.send_binary(create_speech_audio_message(session1.request_id().to_string(), Some(buffer.drain(..BUFFER_SIZE).collect()))) {
+                    let data = buffer.drain(..BUFFER_SIZE).collect();
+                    if let Err(e) = client.send_binary(create_audio_message(session1.request_id().to_string(), None, Some(data))) {
                         tracing::error!("Error: {:?}", e);
                         return;
                     }
@@ -104,10 +105,10 @@ impl Client {
             }
 
             while !buffer.is_empty() {
-                let _ = client.send_binary(create_speech_audio_message(session1.request_id().to_string(), Some(buffer.drain(..std::cmp::min(buffer.len(), BUFFER_SIZE)).collect())));
+                let _ = client.send_binary(create_audio_message(session1.request_id().to_string(), None, Some(buffer.drain(..std::cmp::min(buffer.len(), BUFFER_SIZE)).collect())));
             }
             // notify that we have finished sending the audio.
-            let _ = client.send_binary(create_speech_audio_message(session1.request_id().to_string(), None));
+            let _ = client.send_binary(create_audio_message(session1.request_id().to_string(), None, None));
             session1.set_audio_completed(true);
         });
 
@@ -121,7 +122,7 @@ impl Client {
             })
             // Filter out messages that are not from the current session.
             .filter(move |message| match message {
-                Ok(message) => message.id == session.request_id().to_string(),
+                Ok(message) => message.id == request_id.clone(),
                 Err(_) => true
             })
 
@@ -172,11 +173,11 @@ fn convert_message_to_event(message: Message, session: Session) -> Option<crate:
 
             session.on_hypothesis_received(offset);
 
-            Some(Ok(Event::Recognizing(session.request_id(), offset, value.duration, Recognized {
+            Some(Ok(Event::Recognizing(session.request_id(), Recognized {
                 text: value.text,
-                primary_language: value.primary_language.map(|l| Language::new(l.language, l.confidence)),
+                primary_language: value.primary_language.map(|l| PrimaryLanguage::new(l.language, l.confidence)),
                 speaker_id: value.speaker_id,
-            }, data)))
+            }, offset, value.duration, data)))
         }
 
         ("speech.phrase", Data::Text(Some(data)), _) => {
@@ -194,8 +195,8 @@ fn convert_message_to_event(message: Message, session: Session) -> Option<crate:
                 None => None,
                 Some(e) => return Some(Err(e)),
             };
-            
-            if (recognition_status.is_end_of_dictation()){
+
+            if recognition_status.is_end_of_dictation() {
                 // this case is already mapped in the Event::EndDetected
                 // if not correct, I will add a separate "Event::EndOfDictation"
                 return None;
@@ -218,11 +219,11 @@ fn convert_message_to_event(message: Message, session: Session) -> Option<crate:
                 Err(e) => return Some(Err(crate::Error::ParseError(e.to_string()))),
             };
 
-            Some(Ok(Event::Recognized(session.request_id(), offset, duration, Recognized {
+            Some(Ok(Event::Recognized(session.request_id(), Recognized {
                 text: value.display_text,
-                primary_language: value.primary_language.map(|l| Language::new(l.language, l.confidence)),
+                primary_language: value.primary_language.map(|l| PrimaryLanguage::new(l.language, l.confidence)),
                 speaker_id: value.speaker_id,
-            }, data)))
+            }, offset, duration, data)))
         }
 
         ("turn.end", _, _) => {

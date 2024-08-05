@@ -41,7 +41,7 @@ impl Client {
 impl Client {
     pub(crate) async fn connect(config: ClientConfig) -> crate::Result<Self> {
         let (await_connection_tx, await_connection_rx) = oneshot::channel::<()>();
-        let (client, future) = ezsockets::connect(|client| BaseClient::new(client, await_connection_tx), config).await;
+        let (client, future) = ezsockets::connect(|_| BaseClient::new(await_connection_tx), config).await;
 
         tokio::select! {
             _ = await_connection_rx => {
@@ -63,23 +63,18 @@ impl Client {
 }
 
 pub(crate) enum Call {
-    Text(String),
-    Binary(Vec<u8>),
-
     Subscribe(async_channel::Sender<broadcast::Receiver<crate::Result<Message>>>),
 }
 
 pub(crate) struct BaseClient {
-    handle: ezsockets::Client<Self>,
     messages: broadcast::Sender<crate::Result<Message>>,
     ready: Option<oneshot::Sender<()>>,
 }
 
 impl BaseClient {
-    pub(crate) fn new(handle: ezsockets::Client<Self>,
-                      ready: oneshot::Sender<()>) -> Self {
+    pub(crate) fn new(ready: oneshot::Sender<()>) -> Self {
         let (sender, _) = broadcast::channel(1024*5);
-        Self { handle, messages: sender, ready: Some(ready) }
+        Self { messages: sender, ready: Some(ready) }
     }
 }
 
@@ -114,12 +109,6 @@ impl ezsockets::ClientExt for BaseClient {
 
     async fn on_call(&mut self, call: Self::Call) -> Result<(), Error> {
         match call {
-            Call::Text(text) => {
-                let _ = self.handle.text(text)?;
-            }
-            Call::Binary(bytes) => {
-                let _ = self.handle.binary(bytes)?;
-            }
             Call::Subscribe(respond_to) => {
                 let _ = respond_to.send(self.messages.subscribe()).await?;
             }

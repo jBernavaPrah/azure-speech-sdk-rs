@@ -1,11 +1,10 @@
 use std::env;
 use std::error::Error;
-use std::io::SeekFrom;
-use tokio::io::AsyncBufReadExt;
+use std::io::{SeekFrom, stdin};
 use tokio::sync::mpsc::Receiver;
-use tokio_stream::StreamExt;
+use tokio_stream::{Stream, StreamExt};
+use tokio_stream::wrappers::ReceiverStream;
 use azure_speech::{Auth, synthesizer};
-use azure_speech::synthesizer::Event;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -13,7 +12,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_max_level(tracing::Level::DEBUG)
         .init();
 
-    let mut client = synthesizer::Client::connect(
+    let client = synthesizer::Client::connect(
         // Add your Azure region and subscription key to the environment variables
         Auth::from_subscription(
             env::var("AZURE_REGION").expect("Region set on AZURE_REGION env"),
@@ -28,68 +27,64 @@ async fn main() -> Result<(), Box<dyn Error>> {
             })
             .on_session_end(|session| {
                 tracing::info!("Callback: Session ended {:?}", session);
-            })
-
-
-        ,
+            }),
     ).await.expect("to connect to azure");
 
-    let (tx, rx) = tokio::sync::mpsc::channel(10);
-    let mut buffer = String::new();
-    let mut reader = tokio::io::BufReader::new(tokio::io::stdin());
 
-    tokio::spawn(async move {
-        loop {
-            buffer.clear();
-            if reader.read_line(&mut buffer).await.expect("Failed to read line") <= 0 {
-                break;
-            }
+    let sender = sender_for_default_audio_output();
 
-            if buffer.trim() == "exit" || buffer.len() == 0 {
-                break;
-            }
+    while let Some(line) = recv_from_stdin().next().await {
+        if line == "exit" {
+            tracing::info!("exiting...");
+            break;
+        }
 
-            let mut stream = client.synthesize(buffer.trim().to_string()).await.expect("to synthesize");
-            while let Some(data) = stream.next().await {
-                match data {
-                    Ok(Event::Synthesising(session, audio)) => {
-                        println!("Session {:?} - Audio Length: {:?}", session, audio.len());
-                        tx.send(Some(audio)).await.expect("send audio chunk");
-                    }
-                    Ok(Event::SessionEnded(session)) => {
-                        println!("Session Ended {:?}", session);
-                        tx.send(None).await.expect("send audio chunk");
-                    }
-                    Ok(_) => {
-                        println!("Event: {:?}", data);
-                    }
-                    Err(e) => {
-                        println!("Error: {:?}", e);
-                        //tx.send(None).await.expect("send audio chunk");
-                        break;
-                    }
+        let mut stream = client.synthesize(line.clone()).await.expect("to synthesize");
+
+        while let Some(event) = stream.next().await {
+            match event {
+                Ok(synthesizer::Event::Synthesising(.., audio)) => {
+                    sender.send(Some(audio)).await.expect("send audio chunk");
                 }
+                Ok(synthesizer::Event::SessionEnded(..)) => {
+                    sender.send(None).await.expect("send audio chunk");
+                    break;
+                }
+                _ => {}
             }
         }
 
-        client.disconnect().await.expect("to disconnect");
-        tracing::info!("exit");
+        tracing::info!("Synthesized: {:?}", line);
 
-        drop(tx);
-    });
-
-    tokio::task::spawn_blocking(move || {
-        let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
-        let sink = rodio::Sink::try_new(&handle).unwrap();
-        // while let Some(data) = rx.blocking_recv() {
-        //     sink.append(rodio::Decoder::new(std::io::Cursor::new(data)).unwrap());
-        // }
-        sink.append(rodio::Decoder::new(StreamMediaSource::new(rx)).unwrap());
-        sink.sleep_until_end();
-    }).await.expect("to run blocking task");
-
+        //sink.append(rodio::Decoder::new(StreamMediaSource::new(stream)).unwrap());
+    }
+    
+    drop(sender);
 
     Ok(())
+}
+
+
+pub fn recv_from_stdin() -> impl Stream<Item=String> {
+    let (tx, rx) = tokio::sync::mpsc::channel::<String>(10);
+    std::thread::spawn(move || {
+        let mut buffer = String::new();
+        stdin().read_line(&mut buffer).unwrap();
+        tx.blocking_send(buffer.trim().to_string()).unwrap();
+    });
+
+    ReceiverStream::new(rx)
+}
+
+pub fn sender_for_default_audio_output() -> tokio::sync::mpsc::Sender<Option<Vec<u8>>> {
+    let (tx, rx) = tokio::sync::mpsc::channel::<Option<Vec<u8>>>(10);
+    std::thread::spawn(move || {
+        let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
+        let sink = rodio::Sink::try_new(&handle).unwrap();
+        sink.append(rodio::Decoder::new(StreamMediaSource::new(rx)).unwrap());
+        sink.sleep_until_end();
+    });
+    tx
 }
 
 
@@ -118,10 +113,7 @@ impl StreamMediaSource
                 Some(Some(data)) => {
                     self.buffer.extend(data);
                 }
-                Some(None) => {
-                    break;
-                }
-                None => {
+                Some(None) | None => {
                     break;
                 }
             }

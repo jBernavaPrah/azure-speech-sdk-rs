@@ -35,6 +35,7 @@ impl From<&RecognitionStatus> for Option<crate::Error> {
     
 }
 
+#[allow(dead_code)]
 impl RecognitionStatus {
     pub(crate) fn is_cancelled(&self) -> bool {
         match self {

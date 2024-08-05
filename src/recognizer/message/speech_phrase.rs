@@ -1,9 +1,4 @@
-//     RecognitionStatus: RecognitionStatus;
-//     DisplayText: string;
-//     Offset?: number;
-//     Duration?: number;
-//     PrimaryLanguage?: IPrimaryLanguage;
-//     SpeakerId?: string;
+#![allow(dead_code)]
 
 use serde::Deserialize;
 use crate::recognizer::{Confidence, Duration, Offset};
@@ -21,8 +16,6 @@ pub(crate) struct SpeechPhrase {
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct SimpleSpeechPhrase {
-    #[serde(rename = "RecognitionStatus")]
-    pub(crate) recognition_status: RecognitionStatus,
     #[serde(rename = "DisplayText")]
     pub(crate) display_text: String,
     #[serde(rename = "PrimaryLanguage")]
@@ -33,14 +26,10 @@ pub(crate) struct SimpleSpeechPhrase {
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct DetailedSpeechPhrase {
-    #[serde(rename = "RecognitionStatus")]
-    pub(crate) recognition_status: RecognitionStatus,
     #[serde(rename = "NBest")]
     pub(crate) n_best: Vec<Phrase>,
-    
     #[serde(rename = "PrimaryLanguage")]
     pub(crate) primary_language: Option<Language>,
-    
     #[serde(rename = "DisplayText")]
     pub(crate) display_text: Option<String>,
     #[serde(rename = "SpeakerId")]

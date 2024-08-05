@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::config::Device;
+use crate::recognizer::Language;
 
 #[derive(Debug, Clone)]
 // todo: use the state pattern to manage languages and language_detect_mode.
@@ -7,7 +8,7 @@ pub struct Config {
 
     pub(crate) device: Device,
     
-    pub(crate) languages: Vec<String>,
+    pub(crate) languages: Vec<Language>,
     pub(crate) output_format: OutputFormat,
 
     pub(crate) mode: RecognitionMode, // todo: what is this?
@@ -32,7 +33,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
-            languages: vec!["en-us".to_string()],
+            languages: vec![Language::default()],
             output_format: OutputFormat::Simple,
             mode: RecognitionMode::Conversation,
             language_detect_mode: None,
@@ -74,17 +75,17 @@ impl Config {
 
     /// Set the default language for the recognition.
     /// If needed multiple language detection, use the set_detect_languages method.
-    pub fn set_language(mut self, language: impl Into<String>) -> Self {
-        self.languages = vec![language.into()];
+    pub fn set_language(mut self, language: Language) -> Self {
+        self.languages = vec![language];
         self
     }
 
     /// Instruct to detect the languages from the audio.
     pub fn set_detect_languages(mut self,
-                                languages: Vec<impl Into<String>>,
+                                languages: Vec<Language>,
                                 language_detect_mode: LanguageDetectMode,
     ) -> Self {
-        self.languages = languages.into_iter().map(|l| l.into()).collect();
+        self.languages = languages;
         self.language_detect_mode = Some(language_detect_mode);
         self
     }

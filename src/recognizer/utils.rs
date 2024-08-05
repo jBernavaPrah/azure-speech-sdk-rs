@@ -2,14 +2,12 @@ use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::{make_binary_payload, make_text_payload};
 use crate::recognizer::config::Config;
-use crate::recognizer::{Details, wav};
+use crate::recognizer::{ContentType, Details};
 
 pub(crate) fn create_speech_config_message(request_id: String,
                                            config: &Config,
-                                           spec: &wav::WavSpec,
-                                           details: &Details
+                                           details: &Details,
 ) -> String {
-
     make_text_payload(
         vec![
             ("X-RequestId".to_string(), request_id),
@@ -27,9 +25,9 @@ pub(crate) fn create_speech_config_message(request_id: String,
                             "manufacturer": details.manufacturer,
                             "model": details.model,
                             "type": details.name,
-                            "samplerate": spec.sample_rate,
-                            "bitspersample": spec.bits_per_sample,
-                            "channelcount": spec.channels,
+                            //"samplerate": spec.sample_rate,
+                            //"bitspersample": spec.bits_per_sample,
+                            //"channelcount": spec.channels,
                         }
                     },
                 },
@@ -59,7 +57,7 @@ pub(crate) fn create_speech_context_message(request_id: String, config: &Config)
         context["languageId"] = json!({
             "mode": config.language_detect_mode.as_ref().unwrap(),
             "Priority": "PrioritizeLatency",
-            "languages": config.languages,
+            "languages": config.languages.iter().map(|x| x.as_str()).collect::<Vec<&'static str>>(),
             "onSuccess": {
                 "action": "Recognize"
             },
@@ -112,29 +110,20 @@ pub(crate) fn create_speech_context_message(request_id: String, config: &Config)
     )
 }
 
-pub(crate) fn create_speech_audio_headers_message(request_id: String, 
-                                                  content_type: &str, 
-                                                  spec: &wav::WavSpec) -> Vec<u8> {
+pub(crate) fn create_audio_message(request_id: String, content_type: Option<ContentType>, data: Option<Vec<u8>>) -> Vec<u8> {
+    let mut headers = vec![
+        ("X-RequestId".to_string(), request_id),
+        ("Path".to_string(), "audio".to_string()),
+        ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
+    ];
+
+    if let Some(content_type) = content_type {
+        headers.push(("Content-Type".to_string(), content_type.as_str().to_string()));
+    }
+
 
     make_binary_payload(
-        vec![
-            ("X-RequestId".to_string(), request_id.to_string()),
-            ("Path".to_string(), "audio".to_string()),
-            ("Content-Type".to_string(), content_type.to_string()),
-            ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
-        ],
-        Some(spec.into_header_for_infinite_file()),
-    )
-}
-
-
-pub(crate) fn create_speech_audio_message(request_id: String, data: Option<Vec<u8>>) -> Vec<u8> {
-    make_binary_payload(
-        vec![
-            ("X-RequestId".to_string(), request_id),
-            ("Path".to_string(), "audio".to_string()),
-            ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
-        ],
+        headers,
         data,
     )
 }

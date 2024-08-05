@@ -1,10 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::{json};
-use tokio_stream::Stream;
-use uuid::Uuid;
 use crate::connector::make_text_payload;
 use crate::synthesizer::config::Config;
-use crate::synthesizer::session::Session;
 
 /// Creates a speech configuration message.
 pub(crate) fn create_speech_config_message(request_id: String,
@@ -18,18 +15,6 @@ pub(crate) fn create_speech_config_message(request_id: String,
             ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
         ],
         Some(json!({"context":{"system":&config.device.system,"os":&config.device.os}}).to_string()),
-    )
-}
-
-pub(crate) fn create_stop_speaking_message(request_id: String) -> String {
-    make_text_payload(
-        vec![
-            ("X-RequestId".to_string(), request_id),
-            ("Path".to_string(), "synthesis.control".to_string()),
-            ("Content-Type".to_string(), "application/json".to_string()),
-            ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
-        ],
-        Some(json!({"action": "stop"}).to_string()),
     )
 }
 

@@ -1,72 +1,85 @@
 use std::env;
-use cpal::traits::StreamTrait;
-use azure_speech::{Auth, AzureSpeech, Device, RecognizerConfig, Error, LanguageDetectMode};
-
-
-fn init_logging() {
-    let dir = tracing_subscriber::filter::Directive::from(tracing::Level::INFO);
-
-    use std::io::stderr;
-    use std::io::IsTerminal;
-    use tracing_glog::Glog;
-    use tracing_glog::GlogFields;
-    use tracing_subscriber::filter::EnvFilter;
-    use tracing_subscriber::layer::SubscriberExt;
-    use tracing_subscriber::Registry;
-
-    let fmt = tracing_subscriber::fmt::Layer::default()
-        .with_ansi(stderr().is_terminal())
-        .with_writer(std::io::stderr)
-        .event_format(Glog::default().with_timer(tracing_glog::LocalTime::default()))
-        .fmt_fields(GlogFields::default().compact());
-
-    let filter = vec![dir]
-        .into_iter()
-        .fold(EnvFilter::from_default_env(), |filter, directive| {
-            filter.add_directive(directive)
-        });
-
-    let subscriber = Registry::default().with(filter).with(fmt);
-    tracing::subscriber::set_global_default(subscriber).expect("to set global subscriber");
-}
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::SampleFormat as CPALSampleFormat;
+use tokio_stream::StreamExt;
+use tokio_stream::wrappers::ReceiverStream;
+use azure_speech::Auth;
+use azure_speech::recognizer;
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
-    
-    init_logging();
-    
+async fn main() -> azure_speech::Result<()> {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
+
+
     let auth = Auth::from_subscription(
         env::var("AZURE_REGION").expect("Region set on AZURE_REGION env"),
         env::var("AZURE_SUBSCRIPTION_KEY").expect("Subscription set on AZURE_SUBSCRIPTION_KEY env"),
     );
 
-    let recognizer = AzureSpeech::new(auth, Device::default())
-        .recognizer(RecognizerConfig::default()
-            .set_detect_languages(vec![String::from("it-IT")], LanguageDetectMode::Continuous)
-            
-        );
+    let (rx, stream) = listen_from_default_input().await;
 
-    let (mut receiver, stream) = recognizer.recognize_from_default_microphone().await.expect("recognize failed");
+    let client = recognizer::Client::connect(auth, recognizer::Config::default()
+        .set_detect_languages(vec![recognizer::Language::ItIt], recognizer::LanguageDetectMode::Continuous),
+    ).await?;
+
+    let mut events = client.recognize(ReceiverStream::new(rx), recognizer::ContentType::Wav, recognizer::Details::stream("mac", "stream")).await?;
 
     stream.play().expect("play failed");
-    
-    while let Some(event) = receiver.recv().await {
-        tracing::info!("recognized: {event:?}");
-        
-        if let azure_speech::Event::Specific(azure_speech::EventSpeech::Recognized { text, .. }) = event {
-            tracing::info!("recognized: {text}");
-            if text.to_lowercase().contains("stop") {
-                stream.pause().expect("pause failed");
-                break;
+
+    tracing::info!("Starting to listen...");
+
+    while let Some(event) = events.next().await {
+        match event {
+            Ok(recognizer::Event::Recognized(_, _, _, result, _)) => {
+                tracing::info!("recognized: {:?}", result.text);
             }
+            _ => {}
         }
-        
     }
-    
+
     tracing::info!("Completed!");
-    
-    
-    
-    
+
+
     Ok(())
+}
+
+async fn listen_from_default_input() -> (tokio::sync::mpsc::Receiver<Vec<u8>>, cpal::Stream) {
+    let host = cpal::default_host();
+    let device = host.default_input_device().expect("Failed to get default input device");
+    let device_config = device.default_input_config().expect("Failed to get default input config");
+
+    let config = device_config.clone().into();
+
+    let (tx, rx) = tokio::sync::mpsc::channel(1024);
+
+    tx.send(hound::WavSpec {
+        sample_rate: device_config.sample_rate().0,
+        channels: device_config.channels(),
+        bits_per_sample: (device_config.sample_format().sample_size() * 8) as u16,
+        sample_format: match device_config.sample_format().is_float() {
+            true => hound::SampleFormat::Float,
+            false => hound::SampleFormat::Int,
+        },
+    }.into_header_for_infinite_file()).await.expect("Failed to send wav header");
+
+
+    let err = |err| tracing::error!("Trying to stream input: {err}");
+
+    let stream = match device_config.sample_format() {
+        CPALSampleFormat::I8 => device.build_input_stream(&config, move |data: &[i8], _| data.iter().for_each(|d| tx.try_send(d.to_le_bytes().to_vec()).unwrap_or(())), err, None),
+        CPALSampleFormat::U8 => device.build_input_stream(&config, move |data: &[u8], _| data.iter().for_each(|d| tx.try_send(d.to_le_bytes().to_vec()).unwrap_or(())), err, None),
+        CPALSampleFormat::I16 => device.build_input_stream(&config, move |data: &[i16], _| data.iter().for_each(|d| tx.try_send(d.to_le_bytes().to_vec()).unwrap_or(())), err, None),
+        CPALSampleFormat::U16 => device.build_input_stream(&config, move |data: &[u16], _| data.iter().for_each(|d| tx.try_send(d.to_le_bytes().to_vec()).unwrap_or(())), err, None),
+        CPALSampleFormat::I32 => device.build_input_stream(&config, move |data: &[i32], _| data.iter().for_each(|d| tx.try_send(d.to_le_bytes().to_vec()).unwrap_or(())), err, None),
+        CPALSampleFormat::U32 => device.build_input_stream(&config, move |data: &[u32], _| data.iter().for_each(|d| tx.try_send(d.to_le_bytes().to_vec()).unwrap_or(())), err, None),
+        CPALSampleFormat::F32 => device.build_input_stream(&config, move |data: &[f32], _| data.iter().for_each(|d| tx.try_send(d.to_le_bytes().to_vec()).unwrap_or(())), err, None),
+        CPALSampleFormat::I64 => device.build_input_stream(&config, move |data: &[i64], _| data.iter().for_each(|d| tx.try_send(d.to_le_bytes().to_vec()).unwrap_or(())), err, None),
+        CPALSampleFormat::U64 => device.build_input_stream(&config, move |data: &[u64], _| data.iter().for_each(|d| tx.try_send(d.to_le_bytes().to_vec()).unwrap_or(())), err, None),
+        CPALSampleFormat::F64 => device.build_input_stream(&config, move |data: &[f64], _| data.iter().for_each(|d| tx.try_send(d.to_le_bytes().to_vec()).unwrap_or(())), err, None),
+        _ => panic!("Unsupported sample format"),
+    }.expect("Failed to build input stream");
+
+    (rx, stream)
 }

@@ -31,7 +31,6 @@ mod error;
 mod stream_ext;
 mod event;
 
-
 pub mod synthesizer;
 pub mod recognizer;
 
@@ -39,5 +38,9 @@ pub mod recognizer;
 pub use auth::*;
 pub use connector::*;
 pub use error::*;
-pub use stream_ext::*;
+
 pub use event::*;
+
+pub mod stream {
+    pub use tokio_stream::*;
+}

@@ -1,5 +1,5 @@
 use tokio_stream::{Stream, StreamExt as _};
-use crate::{StreamExt};
+use crate::stream_ext::StreamExt;
 use url::Url;
 use crate::auth::Auth;
 use crate::connector::Client as BaseClient;
@@ -47,20 +47,14 @@ impl Client {
 }
 
 impl Client {
-    /// Stops the synthesizing.
-    pub fn stop_synthesize(&self) -> crate::Result<()> {
-        //self.client.send_text(create_stop_speaking_message(self.config.uuid))
-        unimplemented!("stop")
-    }
-
-    pub async fn synthesize(&self, text: impl ToSSML) -> crate::Result<impl Stream<Item=crate::Result<Event>>+ '_> {
+    
+    pub async fn synthesize(&self, text: impl ToSSML) -> crate::Result<impl Stream<Item=crate::Result<Event>> > {
         let xml = text.to_ssml(self.config.language.clone(), self.config.voice.clone().unwrap_or(self.config.language.default_voice()))?;
         tracing::debug!("Sending ssml message: {:?}", xml);
-
-
-        let mut session = Session::new(uuid::Uuid::new_v4());
-        let config = &self.config;
-        let request_id = session.request_id.clone();
+        
+        let session = Session::new(uuid::Uuid::new_v4());
+        let config = self.config.clone();
+        let request_id = session.request_id().to_string();
 
         // create first the stream.
         // This is necessary to not lost any message after the sending.
@@ -71,7 +65,8 @@ impl Client {
         self.client.send_text(create_synthesis_context_message(request_id.to_string(), &config))?;
         self.client.send_text(create_ssml_message(request_id.to_string(), xml))?;
         
-        
+        let session2 = session.clone();
+        let session3 = session.clone();
         Ok(stream
             // Map errors.
             .map(move |message| match message {
@@ -80,12 +75,12 @@ impl Client {
             })
             // Filter out messages that are not from the current session.
             .filter(move |message| match message {
-                Ok(message) => message.id == session.request_id.to_string(),
+                Ok(message) => message.id == session.request_id().to_string(),
                 Err(_) => true
             })
             // Convert the message to an event.
             .filter_map(move |message| match message {
-                Ok(message) => convert_message_to_event(message, &mut session),
+                Ok(message) => convert_message_to_event(message, session2.clone()),
                 Err(e) => Some(Err(e))
             })
             // Handle the events and call the callbacks.
@@ -117,7 +112,7 @@ impl Client {
 
                     Err(e) => {
                         tracing::error!("Error: {:?}", e);
-                        config.on_error.as_ref().map(|f| f(request_id, e.clone()));
+                        config.on_error.as_ref().map(|f| f(session3.request_id(), e.clone()));
                     }
                 }
 
@@ -132,7 +127,7 @@ impl Client {
 }
 
 
-fn convert_message_to_event(message: Message, session: &mut Session) -> Option<crate::Result<Event>> {
+fn convert_message_to_event(message: Message, session: Session) -> Option<crate::Result<Event>> {
     
     match (message.path.as_str(), message.data.clone(), message.headers.clone()) {
         ("turn.start", Data::Text(Some(data)), _) => {
@@ -143,10 +138,9 @@ fn convert_message_to_event(message: Message, session: &mut Session) -> Option<c
             };
 
             if let Some(webrtc) = value.webrtc {
-                session.webrtc_connection_string = Some(webrtc.connection_string);
+                session.set_webrtc_connection_string(webrtc.connection_string);
             }
-
-            Some(Ok(Event::SessionStarted(session.request_id.clone())))
+            Some(Ok(Event::SessionStarted(session.request_id())))
         }
         ("response", Data::Text(Some(data)), _) => {
             let value = match serde_json::from_str::<message::Response>(&data) {
@@ -154,26 +148,26 @@ fn convert_message_to_event(message: Message, session: &mut Session) -> Option<c
                 Err(e) => return Some(Err(crate::Error::ParseError(e.to_string()))),
             };
 
-            session.stream_id = Some(value.audio.stream_id);
+            session.set_stream_id(value.audio.stream_id);
             None
         }
         ("audio", Data::Binary(audio), headers) => {
             if audio.is_none() {
-                return Some(Ok(Event::Synthesised(session.request_id.clone())));
+                return Some(Ok(Event::Synthesised(session.request_id())));
             }
             
-            let stream_id = session.stream_id.clone().unwrap_or_default();
+            let stream_id = session.stream_id().unwrap_or_default();
             if headers.contains(&(STREAM_ID_HEADER.to_string(), stream_id)) {
-                return Some(Ok(Event::Synthesising(session.request_id.clone(), audio.unwrap())));
+                return Some(Ok(Event::Synthesising(session.request_id(), audio.unwrap())));
             }
 
             None
         }
         ("audio.metadata", Data::Text(Some(string)), _) => {
-            Some(Ok(Event::AudioMetadata(session.request_id.clone(), string)))
+            Some(Ok(Event::AudioMetadata(session.request_id(), string)))
         }
         ("turn.end", _, _) => {
-            Some(Ok(Event::SessionEnded(session.request_id.clone())))
+            Some(Ok(Event::SessionEnded(session.request_id())))
         }
         _ => {
             tracing::warn!("Unknown message: {:?}", message);
