@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use crate::config::Device;
+use crate::RequestId;
 use crate::synthesizer::AudioFormat;
 use crate::synthesizer::Language;
 use crate::synthesizer::ssml::Voice;
@@ -23,12 +24,12 @@ pub struct Config
 
     pub(crate) auto_detect_language: bool,
 
-    pub(crate) on_session_started: Option<Arc<Box<dyn Fn() + Send + Sync + 'static>>>,
-    pub(crate) on_session_ended: Option<Arc<Box<dyn Fn() + Send + Sync + 'static>>>,
-    pub(crate) on_synthesising: Option<Arc<Box<dyn Fn(Vec<u8>) + Send + Sync + 'static>>>,
-    pub(crate) on_audio_metadata: Option<Arc<Box<dyn Fn(String) + Send + Sync + 'static>>>,
-    pub(crate) on_synthesised: Option<Arc<Box<dyn Fn() + Send + Sync + 'static>>>,
-    pub(crate) on_error: Option<Arc<Box<dyn Fn(crate::Error) + Send + Sync + 'static>>>,
+    pub(crate) on_session_started: Option<Arc<Box<dyn Fn(RequestId) + Send + Sync + 'static>>>,
+    pub(crate) on_session_ended: Option<Arc<Box<dyn Fn(RequestId) + Send + Sync + 'static>>>,
+    pub(crate) on_synthesising: Option<Arc<Box<dyn Fn(RequestId, Vec<u8>) + Send + Sync + 'static>>>,
+    pub(crate) on_audio_metadata: Option<Arc<Box<dyn Fn(RequestId, String) + Send + Sync + 'static>>>,
+    pub(crate) on_synthesised: Option<Arc<Box<dyn Fn(RequestId) + Send + Sync + 'static>>>,
+    pub(crate) on_error: Option<Arc<Box<dyn Fn(RequestId, crate::Error) + Send + Sync + 'static>>>,
 
 }
 
@@ -100,7 +101,7 @@ impl Config
 
     pub fn on_session_start<Func>(mut self, func: Func) -> Self
     where
-        Func: Send + Sync + 'static + Fn(),
+        Func: Send + Sync + 'static + Fn(RequestId),
     {
         self.on_session_started = Some(Arc::new(Box::new(func)));
         self
@@ -108,7 +109,7 @@ impl Config
 
     pub fn on_session_end<Func>(mut self, func: Func) -> Self
     where
-        Func: Send + Sync + 'static + Fn(),
+        Func: Send + Sync + 'static + Fn(RequestId),
     {
         self.on_session_ended = Some(Arc::new(Box::new(func)));
         self
@@ -116,7 +117,7 @@ impl Config
 
     pub fn on_synthesising<Func>(mut self, func: Func) -> Self
     where
-        Func: Send + Sync + 'static + Fn(Vec<u8>),
+        Func: Send + Sync + 'static + Fn(RequestId, Vec<u8>),
     {
         self.on_synthesising = Some(Arc::new(Box::new(func)));
         self
@@ -124,7 +125,7 @@ impl Config
 
     pub fn on_audio_metadata<Func>(mut self, func: Func) -> Self
     where
-        Func: Send + Sync + 'static + Fn(String),
+        Func: Send + Sync + 'static + Fn(RequestId, String),
     {
         self.on_audio_metadata = Some(Arc::new(Box::new(func)));
         self
@@ -132,7 +133,7 @@ impl Config
 
     pub fn on_synthesised<Func>(mut self, func: Func) -> Self
     where
-        Func: Send + Sync + 'static + Fn(),
+        Func: Send + Sync + 'static + Fn(RequestId),
     {
         self.on_synthesised = Some(Arc::new(Box::new(func)));
         self
@@ -140,7 +141,7 @@ impl Config
 
     pub fn on_error<Func>(mut self, func: Func) -> Self
     where
-        Func: Send + Sync + 'static + Fn(crate::Error),
+        Func: Send + Sync + 'static + Fn(RequestId, crate::Error),
     {
         self.on_error = Some(Arc::new(Box::new(func)));
         self

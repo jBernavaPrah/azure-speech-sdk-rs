@@ -1,15 +1,17 @@
-use serde::{Deserialize};
+//! Event for the speech recognition
+//!     
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+use crate::RequestId;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// Event for the speech recognition
 pub enum Event {
-    SessionStarted,
-    SessionEnded,
-    
-    AudioMetadata(String),
+    SessionStarted(RequestId),
+    SessionEnded(RequestId),
 
+    AudioMetadata(RequestId, String),
     /// Raw Audio Chunk from the synthesizer.
-    Synthesising(Vec<u8>),
+    Synthesising(RequestId, Vec<u8>),
     /// Synthesizing has finished.
-    Synthesised,
+    Synthesised(RequestId),
 }

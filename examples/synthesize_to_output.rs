@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_max_level(tracing::Level::DEBUG)
         .init();
 
-    let client = synthesizer::Client::connect(
+    let mut client = synthesizer::Client::connect(
         // Add your Azure region and subscription key to the environment variables
         Auth::from_subscription(
             env::var("AZURE_REGION").expect("Region set on AZURE_REGION env"),
@@ -23,14 +23,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         synthesizer::Config::default()
             .with_output_format(synthesizer::AudioFormat::Audio16Khz128KBitRateMonoMp3)
             .with_language(synthesizer::Language::ItIt)
-            .on_session_start(|| {
-                tracing::info!("Callback: Session started");
+            .on_session_start(|session| {
+                tracing::info!("Callback: Session started {:?}", session);
             })
-            .on_session_end(|| {
-                tracing::info!("Callback: Session ended");
+            .on_session_end(|session| {
+                tracing::info!("Callback: Session ended {:?}", session);
             })
-            
-            
+
+
         ,
     ).await.expect("to connect to azure");
 
@@ -51,14 +51,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             let mut stream = client.synthesize(buffer.trim().to_string()).await.expect("to synthesize");
             while let Some(data) = stream.next().await {
-                
                 match data {
-                    Ok(Event::Synthesising(audio)) => {
-                        println!("Event Data: {:?}", audio.len());
+                    Ok(Event::Synthesising(session, audio)) => {
+                        println!("Session {:?} - Audio Length: {:?}", session, audio.len());
                         tx.send(Some(audio)).await.expect("send audio chunk");
                     }
-                    Ok(Event::SessionEnded) => {
-                        println!("Event: {:?}", data);
+                    Ok(Event::SessionEnded(session)) => {
+                        println!("Session Ended {:?}", session);
                         tx.send(None).await.expect("send audio chunk");
                     }
                     Ok(_) => {
@@ -72,7 +71,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
         }
-        
+
         client.disconnect().await.expect("to disconnect");
         tracing::info!("exit");
 
@@ -88,8 +87,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         sink.append(rodio::Decoder::new(StreamMediaSource::new(rx)).unwrap());
         sink.sleep_until_end();
     }).await.expect("to run blocking task");
-    
-    
+
+
     Ok(())
 }
 
@@ -112,9 +111,8 @@ impl StreamMediaSource
     }
 
     fn read_inner(&mut self, len: usize) -> Vec<u8> {
-        
         tracing::info!("Messages left: {}", self.inner.len());
-        
+
         while self.buffer.len() < len {
             match self.inner.blocking_recv() {
                 Some(Some(data)) => {

@@ -1,40 +1,68 @@
-
 use serde::{Deserialize, Serialize};
+use crate::config::Device;
 
 #[derive(Debug, Clone)]
 // todo: use the state pattern to manage languages and language_detect_mode.
-pub struct RecognizerConfig {
+pub struct Config {
 
+    pub(crate) device: Device,
+    
     pub(crate) languages: Vec<String>,
     pub(crate) output_format: OutputFormat,
 
     pub(crate) mode: RecognitionMode, // todo: what is this?
 
-    pub(crate) language_detect_mode: Option<LanguageDetectMode>, // todo: when multiple languages are set, this value need to be different from None.
+    pub(crate) language_detect_mode: Option<LanguageDetectMode>,
 
     pub(crate) phrases: Option<Vec<String>>,
 
     pub(crate) custom_models: Option<Vec<(String, String)>>,
 
-    pub(crate) connection_id: Option<String>, // what is this for?
-    
+    pub(crate) connection_id: Option<String>, // todo: what is this for?
+
     pub(crate) store_audio: bool, // todo: is this needed?
 
     pub(crate) profanity: Profanity,
-    
+
     //pub(crate) recognize_speaker: bool,
-    
+
     // todo add more detailed configuration from default:  src/common.speech/ConnectionFactoryBase.ts
-    
 }
 
-impl RecognizerConfig {
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            languages: vec!["en-us".to_string()],
+            output_format: OutputFormat::Simple,
+            mode: RecognitionMode::Conversation,
+            language_detect_mode: None,
+            phrases: None,
+            custom_models: None,
+            connection_id: None,
+            store_audio: false,
+            device: Device::default(),
+            profanity: Profanity::Masked,
+            //recognize_speaker: false,
+            
+        }
+    }
+}
+
+impl Config {
+    
+    
     /// Enable audio logging in service.
     /// Audio and content logs are stored either in Microsoft-owned storage, or in your own storage account linked
     /// to your Cognitive Services subscription (Bring Your Own Storage (BYOS) enabled Speech resource).
     /// The logs will be removed after 30 days.
     pub fn enable_audio_logging(mut self) -> Self {
         self.store_audio = true;
+        self
+    }
+
+    /// Set Device information.
+    pub fn set_device(mut self, device: Device) -> Self {
+        self.device = device;
         self
     }
 
@@ -77,9 +105,9 @@ impl RecognizerConfig {
     }
 
     /// Set the recognition mode.
-    /// Currently only the Conversation mode was tested.
+    /// *Currently only the Conversation mode was tested.*
     #[allow(dead_code)]
-    pub(crate) fn set_mode(mut self, mode: RecognitionMode) -> Self {
+    pub fn set_recognition_mode(mut self, mode: RecognitionMode) -> Self {
         self.mode = mode;
         self
     }
@@ -90,7 +118,7 @@ impl RecognizerConfig {
         self.output_format = format;
         self
     }
-    
+
     // 
     // pub fn enable_recognize_speaker(mut self) -> Self {
     //     self.recognize_speaker = true;
@@ -98,28 +126,13 @@ impl RecognizerConfig {
     // }
 }
 
-impl Default for RecognizerConfig {
-    fn default() -> Self {
-        RecognizerConfig {
-            store_audio: false,
-            profanity: Profanity::Masked,
-            languages: vec!["en-us".to_string()],
-            output_format: OutputFormat::Simple,
-            mode: RecognitionMode::Conversation,
-            language_detect_mode: None,
-            phrases: None,
-            custom_models: None,
-            connection_id: None,
-            // recognize_speaker: false,
-        }
-    }
-}
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 /// The profanity level.
 pub enum Profanity {
     #[allow(missing_docs)]
+    #[default]
     Masked,
     #[allow(missing_docs)]
     Removed,
@@ -139,7 +152,6 @@ impl Profanity {
 }
 
 
-
 #[derive(Debug, Clone)]
 /// The configuration for the silence detection.
 /// Untested.
@@ -152,11 +164,12 @@ pub struct Silence {
     pub segmentation_timeout_ms: Option<i32>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 /// The recognition mode.
 pub enum RecognitionMode {
     /// Use this mode for normal conversation.
     #[serde(rename = "conversation")]
+    #[default]
     Conversation,
     /// Do not use this mode. It is not supported yet
     #[serde(rename = "interactive")]
@@ -168,21 +181,22 @@ pub enum RecognitionMode {
 
 
 impl RecognitionMode {
-    pub(crate) fn to_uri_path(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
-            RecognitionMode::Conversation => "/speech/recognition/conversation/cognitiveservices/v1",
-            RecognitionMode::Interactive => "/speech/recognition/interactive/cognitiveservices/v1",
-            RecognitionMode::Dictation => "/speech/recognition/dictation/cognitiveservices/v1",
+            
+            RecognitionMode::Conversation => "conversation",
+            RecognitionMode::Interactive => "interactive",
+            RecognitionMode::Dictation => "dictation",
         }
     }
 }
 
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-/// The output format of the events.
-/// After you set the outputFormat, Service will return in the raw Message.json() the Sample or Detailed version of the json.
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
+/// The output format of the messages.
 pub enum OutputFormat {
     #[allow(missing_docs)]
+    #[default]
     Simple,
     #[allow(missing_docs)]
     Detailed,
@@ -198,14 +212,63 @@ impl OutputFormat {
 }
 
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 /// The primary language of the recognized text.
 pub enum LanguageDetectMode {
     /// Detect the language at the start of the audio.
     #[serde(rename = "DetectContinuous")]
+    #[default]
     Continuous,
     /// Detect the language at the start of the audio.
     #[serde(rename = "DetectAtAudioStart")]
     AtStart,
 }
+
+
+#[derive(Debug, Clone)]
+/// Details of the source. This is used to provide information about the source.
+pub struct Details {
+    /// Name of the source, e.g. "Microphone", "Stream", "File"
+    pub name: String,
+    /// Model of the source, e.g. "Stream", "File"
+    pub model: String,
+    /// Manufacturer of the source, e.g. "Unknown"
+    pub connectivity: String,
+    /// Connectivity of the source, e.g. "Unknown"
+    pub manufacturer: String,
+}
+
+impl Details {
+    /// Create a new Details instance
+    pub fn new(name: impl Into<String>,
+               model: impl Into<String>,
+               manufacturer: impl Into<String>,
+               connectivity: impl Into<String>) -> Self {
+        Details {
+            name: name.into(),
+            model: model.into(),
+            manufacturer: manufacturer.into(),
+            connectivity: connectivity.into(),
+        }
+    }
+
+    #[allow(missing_docs)]
+    pub fn unknown() -> Self {
+        Details::new("Unknown", "Unknown", "Unknown", "Unknown")
+    }
+
+    #[allow(missing_docs)]
+    pub fn stream(manufacture: impl Into<String>, connectivity: impl Into<String>) -> Self {
+        Details::new("Stream", "Stream", manufacture, connectivity)
+    }
+    #[allow(missing_docs)]
+    pub fn microphone(manufacture: impl Into<String>, connectivity: impl Into<String>) -> Self {
+        Details::new("Microphone", "Stream", manufacture, connectivity)
+    }
+    #[allow(missing_docs)]
+    pub fn file() -> Self {
+        Details::new("File", "File", "Unknown", "Unknown")
+    }
+}
+
 

@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::result;
+use std::sync::{PoisonError};
 use async_channel::SendError;
 use serde::Deserialize;
 
@@ -14,7 +15,23 @@ pub enum Error {
     InvalidResponse(String),
     ParseError(String),
     InternalError(String),
+    RuntimeError(String),
     ServerDisconnect(String),
+    Forbidden,
+    TooManyRequests,
+    BadRequest,
+}
+
+impl From<url::ParseError> for Error {
+    fn from(e: url::ParseError) -> Self {
+        Error::ParseError(e.to_string())
+    }
+}
+
+impl<T: Debug> From<PoisonError<T>> for Error {
+    fn from(e: PoisonError<T>) -> Self {
+        Error::InternalError(e.to_string())
+    }
 }
 
 impl From<serde_json::Error> for Error{

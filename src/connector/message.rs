@@ -24,7 +24,7 @@ impl Message {
     pub(crate) fn new(id: String, path: String, headers: Headers, data: Data) -> Self {
         Self {
             id,
-            path,
+            path: path.to_lowercase(),
             headers,
             data,
         }
@@ -36,12 +36,12 @@ impl Message {
     }
 
     pub(crate) fn from_headers_and_data(mut headers: Headers, data: Data) -> Self {
-        Self {
-            id: extract_header(&mut headers, REQUEST_ID_HEADER),
-            path: extract_header(&mut headers, PATH_HEADER),
+        Self::new(
+            extract_header(&mut headers, REQUEST_ID_HEADER),
+            extract_header(&mut headers, PATH_HEADER),
             headers,
             data,
-        }
+        )
     }
 }
 

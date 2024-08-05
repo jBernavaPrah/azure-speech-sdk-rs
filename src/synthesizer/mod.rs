@@ -5,6 +5,8 @@ mod message;
 mod client;
 mod ssml;
 mod audio_format;
+mod session;
+
 pub use audio_format::*;
 pub use config::*;
 pub use client::*;

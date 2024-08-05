@@ -23,18 +23,21 @@
 //! Detailed usage instructions and examples are provided in the `examples` directory.
 //!
 
-/// Specific events for the speech recognition
-//mod recognizer;
 mod connector;
 mod auth;
 mod utils;
 mod config;
 mod error;
 mod stream_ext;
+mod event;
+
 
 pub mod synthesizer;
+pub mod recognizer;
+
 
 pub use auth::*;
 pub use connector::*;
 pub use error::*;
 pub use stream_ext::*;
+pub use event::*;

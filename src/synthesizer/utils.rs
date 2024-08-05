@@ -4,14 +4,15 @@ use tokio_stream::Stream;
 use uuid::Uuid;
 use crate::connector::make_text_payload;
 use crate::synthesizer::config::Config;
+use crate::synthesizer::session::Session;
 
 /// Creates a speech configuration message.
-pub(crate) fn create_speech_config_message(session_id: Uuid,
+pub(crate) fn create_speech_config_message(request_id: String,
                                            config: &Config,
 ) -> String {
     make_text_payload(
         vec![
-            ("X-RequestId".to_string(), session_id.to_string()),
+            ("X-RequestId".to_string(), request_id),
             ("Path".to_string(), "speech.config".to_string()),
             ("Content-Type".to_string(), "application/json".to_string()),
             ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
@@ -20,10 +21,10 @@ pub(crate) fn create_speech_config_message(session_id: Uuid,
     )
 }
 
-pub(crate) fn create_stop_speaking_message(session_id: Uuid) -> String {
+pub(crate) fn create_stop_speaking_message(request_id: String) -> String {
     make_text_payload(
         vec![
-            ("X-RequestId".to_string(), session_id.to_string()),
+            ("X-RequestId".to_string(), request_id),
             ("Path".to_string(), "synthesis.control".to_string()),
             ("Content-Type".to_string(), "application/json".to_string()),
             ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
@@ -34,11 +35,11 @@ pub(crate) fn create_stop_speaking_message(session_id: Uuid) -> String {
 
 
 /// Creates a speech context message.
-pub(crate) fn create_synthesis_context_message(session_id: Uuid, config: &Config) -> String {
+pub(crate) fn create_synthesis_context_message(request_id: String, config: &Config) -> String {
     make_text_payload(vec![
         ("Content-Type".to_string(), "application/json".to_string()),
         ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
-        ("X-RequestId".to_string(), session_id.to_string()),
+        ("X-RequestId".to_string(), request_id),
         ("Path".to_string(), "synthesis.context".to_string()),
     ], Some(json!({"synthesis":
         {"audio":
@@ -57,11 +58,11 @@ pub(crate) fn create_synthesis_context_message(session_id: Uuid, config: &Config
         }}).to_string()))
 }
 
-pub(crate) fn create_ssml_message(session_id: Uuid, ssml: String) -> String {
+pub(crate) fn create_ssml_message(request_id: String, ssml: String) -> String {
     make_text_payload(vec![
         ("Content-Type".to_string(), "application/ssml+xml".to_string()),
         ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
-        ("X-RequestId".to_string(), session_id.to_string()),
+        ("X-RequestId".to_string(), request_id),
         ("Path".to_string(), "ssml".to_string()),
     ], Some(ssml))
 }
