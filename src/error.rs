@@ -1,12 +1,11 @@
-use std::fmt::Debug;
-use std::result;
-use std::sync::{PoisonError};
 use async_channel::SendError;
 use serde::Deserialize;
+use std::fmt::Debug;
+use std::result;
+use std::sync::PoisonError;
 
 /// Result type for the library.
 pub type Result<T> = result::Result<T, Error>;
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 /// Error struct, used to represent errors in the library.
@@ -34,7 +33,7 @@ impl<T: Debug> From<PoisonError<T>> for Error {
     }
 }
 
-impl From<serde_json::Error> for Error{
+impl From<serde_json::Error> for Error {
     fn from(e: serde_json::Error) -> Self {
         Error::ParseError(e.to_string())
     }

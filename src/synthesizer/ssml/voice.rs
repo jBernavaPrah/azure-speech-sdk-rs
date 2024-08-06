@@ -134,7 +134,6 @@ pub enum Voice {
 }
 
 impl Voice {
-    
     pub fn as_str(&self) -> &'static str {
         match *self {
             Voice::AfZaAdriNeural => "af-ZA-AdriNeural",
@@ -269,6 +268,4 @@ impl Voice {
             Voice::Specific(s) => s,
         }
     }
-
-    
 }

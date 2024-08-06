@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Default)]
 pub enum AudioFormat {
     #[default]
@@ -15,14 +14,14 @@ pub enum AudioFormat {
     Riff22050Hz16BitMonoPcm,
     Raw44100Hz16BitMonoPcm,
     Riff44100Hz16BitMonoPcm,
-    
+
     Raw8Khz8BitMonoMULaw,
     Raw8Khz8BitMonoALaw,
     Riff8Khz8BitMonoALaw,
 
     Riff16Khz16KbpsMonoSiren,
     Audio16Khz16KbpsMonoSiren,
-    
+
     Audio16Khz32KBitRateMonoMp3,
     Audio16Khz128KBitRateMonoMp3,
     Audio16Khz64KBitRateMonoMp3,
@@ -31,7 +30,7 @@ pub enum AudioFormat {
     Audio24Khz160KBitRateMonoMp3,
     Audio48Khz96KBitRateMonoMp3,
     Audio48Khz192KBitRateMonoMp3,
-    
+
     Raw16Khz16BitMonoTrueSilk,
     Raw24Khz16BitMonoTrueSilk,
 
@@ -47,7 +46,6 @@ pub enum AudioFormat {
 }
 
 impl AudioFormat {
-
     pub fn as_str(&self) -> &'static str {
         match *self {
             AudioFormat::Raw8Khz8BitMonoMULaw => "raw-8khz-8bit-mono-mulaw",
@@ -67,7 +65,6 @@ impl AudioFormat {
             AudioFormat::Raw24Khz16BitMonoTrueSilk => "raw-24khz-16bit-mono-truesilk",
             AudioFormat::Raw8Khz8BitMonoALaw => "raw-8khz-8bit-mono-alaw",
             AudioFormat::Riff8Khz8BitMonoALaw => "riff-8khz-8bit-mono-alaw",
-
 
             AudioFormat::Riff16Khz16KbpsMonoSiren => "riff-16khz-16kbps-mono-siren",
             AudioFormat::Audio16Khz16KbpsMonoSiren => "audio-16khz-16kbps-mono-siren",
@@ -89,9 +86,6 @@ impl AudioFormat {
             AudioFormat::Audio16Khz16Bit32KbpsMonoOpus => "audio-16khz-16bit-32kbps-mono-opus",
             AudioFormat::Audio24Khz16Bit48KbpsMonoOpus => "audio-24khz-16bit-48kbps-mono-opus",
             AudioFormat::Audio24Khz16Bit24KbpsMonoOpus => "audio-24khz-16bit-24kbps-mono-opus",
-            
         }
     }
 }
-
-

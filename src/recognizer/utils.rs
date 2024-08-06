@@ -1,21 +1,30 @@
-use serde_json::{json, Value};
-use std::time::{SystemTime, UNIX_EPOCH};
-use crate::{make_binary_payload, make_text_payload};
 use crate::recognizer::config::Config;
 use crate::recognizer::{ContentType, Details};
+use crate::{make_binary_payload, make_text_payload};
+use serde_json::{json, Value};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-pub(crate) fn create_speech_config_message(request_id: String,
-                                           config: &Config,
-                                           details: &Details,
+pub(crate) fn create_speech_config_message(
+    request_id: String,
+    config: &Config,
+    details: &Details,
 ) -> String {
     make_text_payload(
         vec![
             ("X-RequestId".to_string(), request_id),
             ("Path".to_string(), "speech.config".to_string()),
             ("Content-Type".to_string(), "application/json".to_string()),
-            ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
+            (
+                "X-Timestamp".to_string(),
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis()
+                    .to_string(),
+            ),
         ],
-        Some(json!({
+        Some(
+            json!({
                 "context": {
                     "system": config.device.system,
                     "os": config.device.os,
@@ -32,10 +41,11 @@ pub(crate) fn create_speech_config_message(request_id: String,
                     },
                 },
                 "recognition": config.mode,
-            }).to_string()),
+            })
+            .to_string(),
+        ),
     )
 }
-
 
 pub(crate) fn create_speech_context_message(request_id: String, config: &Config) -> String {
     let mut context = json!({});
@@ -66,22 +76,27 @@ pub(crate) fn create_speech_context_message(request_id: String, config: &Config)
             }
         });
 
-        let custom_models: Option<Value> = config.custom_models
-            .as_ref()
-            .map(|custom_models| custom_models.iter().map(|(l, e)| json!({
-                "language": l,
-                "endpoint": e,
-            })).collect());
+        let custom_models: Option<Value> = config.custom_models.as_ref().map(|custom_models| {
+            custom_models
+                .iter()
+                .map(|(l, e)| {
+                    json!({
+                        "language": l,
+                        "endpoint": e,
+                    })
+                })
+                .collect()
+        });
 
         context["phraseDetection"] = json!({
-            
+
             // "mode": "Conversation",
             // "speakerDiarization": {
             //     "mode": "Anonymous",
             //     "audioSessionId": "1",
             //     "audioOffsetMs": 0
             // },
-            
+
             "customModels": custom_models,
             // todo: when translation, this are set to { action: "Translate" }
             "onInterim": Value::Null,
@@ -104,27 +119,43 @@ pub(crate) fn create_speech_context_message(request_id: String, config: &Config)
             ("X-RequestId".to_string(), request_id.to_string()),
             ("Path".to_string(), "speech.context".to_string()),
             ("Content-Type".to_string(), "application/json".to_string()),
-            ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
+            (
+                "X-Timestamp".to_string(),
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis()
+                    .to_string(),
+            ),
         ],
         Some(context.to_string()),
     )
 }
 
-pub(crate) fn create_audio_message(request_id: String, content_type: Option<ContentType>, data: Option<Vec<u8>>) -> Vec<u8> {
+pub(crate) fn create_audio_message(
+    request_id: String,
+    content_type: Option<ContentType>,
+    data: Option<Vec<u8>>,
+) -> Vec<u8> {
     let mut headers = vec![
         ("X-RequestId".to_string(), request_id),
         ("Path".to_string(), "audio".to_string()),
-        ("X-Timestamp".to_string(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis().to_string()),
+        (
+            "X-Timestamp".to_string(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+                .to_string(),
+        ),
     ];
 
     if let Some(content_type) = content_type {
-        headers.push(("Content-Type".to_string(), content_type.as_str().to_string()));
+        headers.push((
+            "Content-Type".to_string(),
+            content_type.as_str().to_string(),
+        ));
     }
 
-
-    make_binary_payload(
-        headers,
-        data,
-    )
+    make_binary_payload(headers, data)
 }
-

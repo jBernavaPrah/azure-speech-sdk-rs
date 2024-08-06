@@ -1,14 +1,14 @@
 [package]
 name = "azure-speech"
-version = "0.0.2-alpha"
+version = "0.1.0"
 authors = ["Jure Bernava Prah <webjure@gmail.com>"]
-description = "Pure Rust implementation for Microsoft Speech Service."
+description = "Pure Rust implementation for Microsoft Speech Service"
 edition = "2021"
 rust-version = "1.71.0"
 license = "MIT"
 readme = "readme.md"
-repository = "https://github.com/jbernavaprah/azure-speech-rs"
-homepage = "https://github.com/jbernavaprah/azure-speech-rs"
+repository = "https://github.com/jbernavaprah/azure-speech-sdk-rs"
+homepage = "https://github.com/jbernavaprah/azure-speech-sdk-rs"
 include = [
     "Cargo.toml",
     "readme.md",

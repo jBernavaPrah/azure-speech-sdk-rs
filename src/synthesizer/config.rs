@@ -1,13 +1,12 @@
-use std::sync::Arc;
 use crate::config::Device;
-use crate::RequestId;
+use crate::synthesizer::ssml::Voice;
 use crate::synthesizer::AudioFormat;
 use crate::synthesizer::Language;
-use crate::synthesizer::ssml::Voice;
+use crate::RequestId;
+use std::sync::Arc;
 
 #[derive(Clone, Default)]
-pub struct Config
-{
+pub struct Config {
     pub(crate) output_format: AudioFormat,
 
     pub(crate) device: Device,
@@ -26,16 +25,15 @@ pub struct Config
 
     pub(crate) on_session_started: Option<Arc<Box<dyn Fn(RequestId) + Send + Sync + 'static>>>,
     pub(crate) on_session_ended: Option<Arc<Box<dyn Fn(RequestId) + Send + Sync + 'static>>>,
-    pub(crate) on_synthesising: Option<Arc<Box<dyn Fn(RequestId, Vec<u8>) + Send + Sync + 'static>>>,
-    pub(crate) on_audio_metadata: Option<Arc<Box<dyn Fn(RequestId, String) + Send + Sync + 'static>>>,
+    pub(crate) on_synthesising:
+        Option<Arc<Box<dyn Fn(RequestId, Vec<u8>) + Send + Sync + 'static>>>,
+    pub(crate) on_audio_metadata:
+        Option<Arc<Box<dyn Fn(RequestId, String) + Send + Sync + 'static>>>,
     pub(crate) on_synthesised: Option<Arc<Box<dyn Fn(RequestId) + Send + Sync + 'static>>>,
     pub(crate) on_error: Option<Arc<Box<dyn Fn(RequestId, crate::Error) + Send + Sync + 'static>>>,
-
 }
 
-
-impl Config
-{
+impl Config {
     pub fn new() -> Self {
         Self {
             session_end_enabled: true,

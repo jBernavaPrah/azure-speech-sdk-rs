@@ -135,7 +135,6 @@ pub enum Language {
     ZuZa,
 }
 
-
 impl Language {
     pub fn as_str(&self) -> &'static str {
         match *self {

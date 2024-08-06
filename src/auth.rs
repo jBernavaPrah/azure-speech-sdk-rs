@@ -1,4 +1,3 @@
-
 #[derive(Clone, Debug)]
 /// Auth struct, used to authenticate with Azure Speech Services.
 pub struct Auth {
@@ -13,6 +12,4 @@ impl Auth {
             subscription: subscription.into(),
         }
     }
-    
-    
 }

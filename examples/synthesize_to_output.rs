@@ -1,10 +1,10 @@
+use azure_speech::{synthesizer, Auth};
 use std::env;
 use std::error::Error;
-use std::io::{SeekFrom, stdin};
+use std::io::{stdin, SeekFrom};
 use tokio::sync::mpsc::Receiver;
-use tokio_stream::{Stream, StreamExt};
 use tokio_stream::wrappers::ReceiverStream;
-use azure_speech::{Auth, synthesizer};
+use tokio_stream::{Stream, StreamExt};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -16,7 +16,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // Add your Azure region and subscription key to the environment variables
         Auth::from_subscription(
             env::var("AZURE_REGION").expect("Region set on AZURE_REGION env"),
-            env::var("AZURE_SUBSCRIPTION_KEY").expect("Subscription set on AZURE_SUBSCRIPTION_KEY env"),
+            env::var("AZURE_SUBSCRIPTION_KEY")
+                .expect("Subscription set on AZURE_SUBSCRIPTION_KEY env"),
         ),
         // Set the configuration for the synthesizer
         synthesizer::Config::default()
@@ -28,8 +29,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .on_session_end(|session| {
                 tracing::info!("Callback: Session ended {:?}", session);
             }),
-    ).await.expect("to connect to azure");
-
+    )
+    .await
+    .expect("to connect to azure");
 
     let sender = sender_for_default_audio_output();
 
@@ -39,7 +41,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             break;
         }
 
-        let mut stream = client.synthesize(line.clone()).await.expect("to synthesize");
+        let mut stream = client
+            .synthesize(line.clone())
+            .await
+            .expect("to synthesize");
 
         while let Some(event) = stream.next().await {
             match event {
@@ -56,14 +61,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         tracing::info!("Synthesized: {:?}", line);
     }
-    
+
     drop(sender);
 
     Ok(())
 }
 
-
-pub fn recv_from_stdin() -> impl Stream<Item=String> {
+pub fn recv_from_stdin() -> impl Stream<Item = String> {
     let (tx, rx) = tokio::sync::mpsc::channel::<String>(10);
     std::thread::spawn(move || {
         let mut buffer = String::new();
@@ -85,18 +89,13 @@ pub fn sender_for_default_audio_output() -> tokio::sync::mpsc::Sender<Option<Vec
     tx
 }
 
-
-pub(crate) struct StreamMediaSource
-{
+pub(crate) struct StreamMediaSource {
     inner: Receiver<Option<Vec<u8>>>,
     buffer: Vec<u8>,
 }
 
-impl StreamMediaSource
-{
-    pub fn new(inner: Receiver<Option<Vec<u8>>>) -> Self
-
-    {
+impl StreamMediaSource {
+    pub fn new(inner: Receiver<Option<Vec<u8>>>) -> Self {
         Self {
             inner,
             buffer: Vec::with_capacity(1024),
@@ -121,9 +120,7 @@ impl StreamMediaSource
     }
 }
 
-
-impl std::io::Read for StreamMediaSource
-{
+impl std::io::Read for StreamMediaSource {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let data = self.read_inner(buf.len());
         let len = std::cmp::min(buf.len(), data.len());
@@ -133,13 +130,11 @@ impl std::io::Read for StreamMediaSource
     }
 }
 
-impl std::io::Seek for StreamMediaSource
-{
+impl std::io::Seek for StreamMediaSource {
     fn seek(&mut self, _pos: SeekFrom) -> std::io::Result<u64> {
         unreachable!("StreamMediaSource does not support seeking")
     }
 }
-
 
 #[cfg(test)]
 mod tests {

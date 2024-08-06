@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
-use serde::Deserialize;
-use crate::recognizer::{Confidence, Duration, Offset};
 use crate::recognizer::message::common::{Language, RecognitionStatus};
+use crate::recognizer::{Confidence, Duration, Offset};
+use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct SpeechPhrase {
@@ -55,7 +55,6 @@ pub(crate) struct Phrase {
     #[serde(rename = "DisplayWords")]
     pub(crate) display_words: Option<Vec<Word>>,
 }
-
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct Word {

@@ -1,5 +1,8 @@
+use crate::connector::utils::{
+    extract_headers_and_data_from_binary_message, extract_headers_and_data_from_text_message,
+    make_binary_payload, make_text_payload,
+};
 use ezsockets::Message as EzMessage;
-use crate::connector::utils::{extract_headers_and_data_from_binary_message, extract_headers_and_data_from_text_message, make_binary_payload, make_text_payload};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Data {
@@ -33,7 +36,10 @@ impl Message {
     #[allow(dead_code)]
     pub(crate) fn get_header<I: Into<String> + Eq>(&self, key: I) -> Option<String> {
         let key = key.into();
-        self.headers.iter().find(|(k, _)| k == &key).map(|(_, v)| v.clone())
+        self.headers
+            .iter()
+            .find(|(k, _)| k == &key)
+            .map(|(_, v)| v.clone())
     }
 
     pub(crate) fn from_headers_and_data(mut headers: Headers, data: Data) -> Self {
@@ -91,8 +97,12 @@ mod tests {
 
     #[test]
     fn test_message_to_ezmessage() {
-        let message = Message::new("id".to_string(), "path".to_string(),
-                                   vec![("header".to_string(), "value".to_string())], Data::Text(Some("data".to_string())));
+        let message = Message::new(
+            "id".to_string(),
+            "path".to_string(),
+            vec![("header".to_string(), "value".to_string())],
+            Data::Text(Some("data".to_string())),
+        );
 
         let ezmessage: EzMessage = message.clone().into();
         let headers = vec![
@@ -112,37 +122,70 @@ mod tests {
 
     #[test]
     fn test_string_to_message() {
-        let text = make_text_payload(vec![
-            (REQUEST_ID_HEADER.to_string(), "id".to_string()),
-            (PATH_HEADER.to_string(), "path".to_string()),
-            ("header".to_string(), "value".to_string()),
-        ], Some("data".to_string()));
+        let text = make_text_payload(
+            vec![
+                (REQUEST_ID_HEADER.to_string(), "id".to_string()),
+                (PATH_HEADER.to_string(), "path".to_string()),
+                ("header".to_string(), "value".to_string()),
+            ],
+            Some("data".to_string()),
+        );
 
         let message: Message = text.try_into().unwrap();
-        assert_eq!(message, Message::new("id".to_string(), "path".to_string(), vec![("header".to_string(), "value".to_string())], Data::Text(Some("data".to_string()))));
+        assert_eq!(
+            message,
+            Message::new(
+                "id".to_string(),
+                "path".to_string(),
+                vec![("header".to_string(), "value".to_string())],
+                Data::Text(Some("data".to_string()))
+            )
+        );
     }
 
     #[test]
     fn test_binary_to_message() {
-        let data = make_binary_payload(vec![
-            (REQUEST_ID_HEADER.to_string(), "id".to_string()),
-            (PATH_HEADER.to_string(), "path".to_string()),
-            ("header".to_string(), "value".to_string()),
-        ], Some("data".as_bytes().to_vec()));
+        let data = make_binary_payload(
+            vec![
+                (REQUEST_ID_HEADER.to_string(), "id".to_string()),
+                (PATH_HEADER.to_string(), "path".to_string()),
+                ("header".to_string(), "value".to_string()),
+            ],
+            Some("data".as_bytes().to_vec()),
+        );
 
         let message: Message = data.try_into().unwrap();
-        assert_eq!(message, Message::new("id".to_string(), "path".to_string(), vec![("header".to_string(), "value".to_string())], Data::Binary(Some("data".as_bytes().to_vec()))));
+        assert_eq!(
+            message,
+            Message::new(
+                "id".to_string(),
+                "path".to_string(),
+                vec![("header".to_string(), "value".to_string())],
+                Data::Binary(Some("data".as_bytes().to_vec()))
+            )
+        );
     }
 
     #[test]
     fn test_binary_to_message_binary_no_data() {
-        let message = make_binary_payload(vec![
-            (REQUEST_ID_HEADER.to_string(), "id".to_string()),
-            (PATH_HEADER.to_string(), "path".to_string()),
-            ("header".to_string(), "value".to_string()),
-        ], None);
+        let message = make_binary_payload(
+            vec![
+                (REQUEST_ID_HEADER.to_string(), "id".to_string()),
+                (PATH_HEADER.to_string(), "path".to_string()),
+                ("header".to_string(), "value".to_string()),
+            ],
+            None,
+        );
 
         let message: Message = message.try_into().unwrap();
-        assert_eq!(message, Message::new("id".to_string(), "path".to_string(), vec![("header".to_string(), "value".to_string())], Data::Binary(None)));
+        assert_eq!(
+            message,
+            Message::new(
+                "id".to_string(),
+                "path".to_string(),
+                vec![("header".to_string(), "value".to_string())],
+                Data::Binary(None)
+            )
+        );
     }
 }

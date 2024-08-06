@@ -5,16 +5,15 @@ use pin_project_lite::pin_project;
 use tokio_stream::Stream;
 
 pin_project! {
-    /// Stream for the [`stop_after`](stop_after) method.
-    #[must_use = "streams do nothing unless polled"]
-        pub struct StopAfter<St, F> {
-            #[pin]
-            stream: St,
-            predicate: F,
-            done: bool,
-        }
+/// Stream for the [`stop_after`](stop_after) method.
+#[must_use = "streams do nothing unless polled"]
+    pub struct StopAfter<St, F> {
+        #[pin]
+        stream: St,
+        predicate: F,
+        done: bool,
     }
-
+}
 
 impl<St, F> StopAfter<St, F> {
     pub(super) fn new(stream: St, predicate: F) -> Self {
@@ -48,13 +47,12 @@ where
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if !*self.as_mut().project().done {
             self.as_mut().project().stream.poll_next(cx).map(|ready| {
-                let ready = ready.
-                    map(|item| {
-                        if (self.as_mut().project().predicate)(&item) {
-                            *self.as_mut().project().done = true;
-                        }
-                        item
-                    });
+                let ready = ready.map(|item| {
+                    if (self.as_mut().project().predicate)(&item) {
+                        *self.as_mut().project().done = true;
+                    }
+                    item
+                });
                 ready
             })
         } else {
@@ -73,8 +71,6 @@ where
     }
 }
 
-
-
 pub trait StreamExt: Stream {
     /// Takes elements from this stream until the provided predicate resolves to `true`.
     ///
@@ -89,7 +85,7 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use tokio_stream::{self as stream, StreamExt as _};
-    /// use azure_speech::stream::StreamExt  as _;
+    /// use azure_speech::StreamExt;
     ///
     /// #[tokio::main]
     /// async fn main() {

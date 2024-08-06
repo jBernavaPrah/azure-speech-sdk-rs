@@ -1,13 +1,12 @@
-use serde::{Deserialize, Serialize};
 use crate::config::Device;
 use crate::recognizer::Language;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 // todo: use the state pattern to manage languages and language_detect_mode.
 pub struct Config {
-
     pub(crate) device: Device,
-    
+
     pub(crate) languages: Vec<Language>,
     pub(crate) output_format: OutputFormat,
 
@@ -24,7 +23,6 @@ pub struct Config {
     pub(crate) store_audio: bool, // todo: is this needed?
 
     pub(crate) profanity: Profanity,
-
     //pub(crate) recognize_speaker: bool,
 
     // todo add more detailed configuration from default:  src/common.speech/ConnectionFactoryBase.ts
@@ -44,14 +42,11 @@ impl Default for Config {
             device: Device::default(),
             profanity: Profanity::Masked,
             //recognize_speaker: false,
-            
         }
     }
 }
 
 impl Config {
-    
-    
     /// Enable audio logging in service.
     /// Audio and content logs are stored either in Microsoft-owned storage, or in your own storage account linked
     /// to your Cognitive Services subscription (Bring Your Own Storage (BYOS) enabled Speech resource).
@@ -81,9 +76,10 @@ impl Config {
     }
 
     /// Instruct to detect the languages from the audio.
-    pub fn set_detect_languages(mut self,
-                                languages: Vec<Language>,
-                                language_detect_mode: LanguageDetectMode,
+    pub fn set_detect_languages(
+        mut self,
+        languages: Vec<Language>,
+        language_detect_mode: LanguageDetectMode,
     ) -> Self {
         self.languages = languages;
         self.language_detect_mode = Some(language_detect_mode);
@@ -96,7 +92,6 @@ impl Config {
         self.phrases = Some(phrases);
         self
     }
-
 
     /// Use custom Models.
     /// Untested.
@@ -120,14 +115,12 @@ impl Config {
         self
     }
 
-    // 
+    //
     // pub fn enable_recognize_speaker(mut self) -> Self {
     //     self.recognize_speaker = true;
     //     self
     // }
 }
-
-
 
 #[derive(Debug, Clone, Default)]
 /// The profanity level.
@@ -141,17 +134,15 @@ pub enum Profanity {
     Raw,
 }
 
-
 impl Profanity {
     pub(crate) fn as_str(&self) -> &'static str {
         match self {
             Profanity::Masked => "masked",
             Profanity::Removed => "removed",
-            Profanity::Raw => "raw"
+            Profanity::Raw => "raw",
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 /// The configuration for the silence detection.
@@ -180,18 +171,15 @@ pub enum RecognitionMode {
     Dictation,
 }
 
-
 impl RecognitionMode {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
-            
             RecognitionMode::Conversation => "conversation",
             RecognitionMode::Interactive => "interactive",
             RecognitionMode::Dictation => "dictation",
         }
     }
 }
-
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 /// The output format of the messages.
@@ -207,11 +195,10 @@ impl OutputFormat {
     pub(crate) fn as_str(&self) -> &'static str {
         match self {
             OutputFormat::Simple => "simple",
-            OutputFormat::Detailed => "detailed"
+            OutputFormat::Detailed => "detailed",
         }
     }
 }
-
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 /// The primary language of the recognized text.
@@ -224,7 +211,6 @@ pub enum LanguageDetectMode {
     #[serde(rename = "DetectAtAudioStart")]
     AtStart,
 }
-
 
 #[derive(Debug, Clone)]
 /// Details of the source. This is used to provide information about the source.
@@ -241,10 +227,12 @@ pub struct Details {
 
 impl Details {
     /// Create a new Details instance
-    pub fn new(name: impl Into<String>,
-               model: impl Into<String>,
-               manufacturer: impl Into<String>,
-               connectivity: impl Into<String>) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        model: impl Into<String>,
+        manufacturer: impl Into<String>,
+        connectivity: impl Into<String>,
+    ) -> Self {
         Details {
             name: name.into(),
             model: model.into(),
@@ -271,5 +259,3 @@ impl Details {
         Details::new("File", "File", "Unknown", "Unknown")
     }
 }
-
-

@@ -23,23 +23,23 @@
 //! Detailed usage instructions and examples are provided in the `examples` directory.
 //!
 
-mod connector;
 mod auth;
-mod utils;
 mod config;
+mod connector;
 mod error;
-mod stream_ext;
 mod event;
+mod stream_ext;
+mod utils;
 
-pub mod synthesizer;
 pub mod recognizer;
-
+pub mod synthesizer;
 
 pub use auth::*;
 pub use connector::*;
 pub use error::*;
 
 pub use event::*;
+pub use stream_ext::*;
 
 pub mod stream {
     pub use tokio_stream::*;

@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use crate::recognizer::Offset;
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Clone, Default)]
 pub(crate) struct SpeechEndDetected {

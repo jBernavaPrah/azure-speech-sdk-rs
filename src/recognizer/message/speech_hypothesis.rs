@@ -1,6 +1,6 @@
-use serde::Deserialize;
 use crate::recognizer::message::common::Language;
 use crate::recognizer::{Duration, Offset};
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct SpeechHypothesis {

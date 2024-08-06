@@ -1,5 +1,5 @@
-use std::sync::{Arc, Mutex};
 use crate::recognizer::Offset;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Default, Clone)]
 struct SessionInner {
@@ -14,7 +14,6 @@ struct SessionInner {
 pub(crate) struct Session {
     inner: Arc<Mutex<SessionInner>>,
 }
-
 
 impl Session {
     pub(crate) fn new(uuid: uuid::Uuid) -> Self {

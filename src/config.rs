@@ -31,7 +31,6 @@ impl Device {
     }
 }
 
-
 impl System {
     #[allow(missing_docs)]
     pub fn unknown() -> Self {

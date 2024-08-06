@@ -1,11 +1,10 @@
+use crate::connector::message::Message;
 use async_trait::async_trait;
+use ezsockets::client::ClientCloseMode;
 use ezsockets::{ClientConfig, CloseCode, CloseFrame, Error};
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
-use ezsockets::client::ClientCloseMode;
 use tokio_stream::wrappers::BroadcastStream;
-use crate::connector::message::Message;
-
 
 #[derive(Clone)]
 pub struct Client {
@@ -33,15 +32,20 @@ impl Client {
 
     /// Stream messages from the server.
     pub async fn stream(&self) -> crate::Result<BroadcastStream<crate::Result<Message>>> {
-        self.handle.call_with(Call::Subscribe).await
-            .map_or(Err(crate::Error::InternalError("Failed to subscribe to messages".to_string())), |rx| Ok(BroadcastStream::new(rx)))
+        self.handle.call_with(Call::Subscribe).await.map_or(
+            Err(crate::Error::InternalError(
+                "Failed to subscribe to messages".to_string(),
+            )),
+            |rx| Ok(BroadcastStream::new(rx)),
+        )
     }
 }
 
 impl Client {
     pub(crate) async fn connect(config: ClientConfig) -> crate::Result<Self> {
         let (await_connection_tx, await_connection_rx) = oneshot::channel::<()>();
-        let (client, future) = ezsockets::connect(|_| BaseClient::new(await_connection_tx), config).await;
+        let (client, future) =
+            ezsockets::connect(|_| BaseClient::new(await_connection_tx), config).await;
 
         tokio::select! {
             _ = await_connection_rx => {
@@ -73,11 +77,13 @@ pub(crate) struct BaseClient {
 
 impl BaseClient {
     pub(crate) fn new(ready: oneshot::Sender<()>) -> Self {
-        let (sender, _) = broadcast::channel(1024*5);
-        Self { messages: sender, ready: Some(ready) }
+        let (sender, _) = broadcast::channel(1024 * 5);
+        Self {
+            messages: sender,
+            ready: Some(ready),
+        }
     }
 }
-
 
 #[async_trait]
 impl ezsockets::ClientExt for BaseClient {
@@ -138,7 +144,9 @@ impl ezsockets::ClientExt for BaseClient {
                     }
                     _ => {
                         tracing::debug!("Sending server error message...");
-                        self.messages.send(Err(crate::Error::ServerDisconnect(reason.clone().to_string())))?;
+                        self.messages.send(Err(crate::Error::ServerDisconnect(
+                            reason.clone().to_string(),
+                        )))?;
                         tracing::debug!("Closing...");
                         ClientCloseMode::Close
                     }

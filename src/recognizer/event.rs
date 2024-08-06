@@ -1,6 +1,5 @@
 use crate::RequestId;
 
-
 pub type RawMessage = String;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,10 +22,8 @@ pub enum Event {
     /// UnMatch event.
     /// This event is triggered when the speech recognition does not match any text.
     UnMatch(RequestId, Offset, Duration, RawMessage),
-
     //Cancelled(RequestId, Offset, crate::Error),
 }
-
 
 /// The offset of the speech recognition.
 /// The offset is the time in milliseconds from the start of the conversation.
@@ -45,7 +42,6 @@ pub struct Recognized {
     /// This will be None if the detection of the speaker is not activated.
     pub speaker_id: Option<String>,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// Primary language

@@ -131,9 +131,7 @@ pub enum Language {
     ZhTw,
     ZuZa,
     Custom(&'static str),
-
 }
-
 
 impl Language {
     pub fn as_str(&self) -> &'static str {
