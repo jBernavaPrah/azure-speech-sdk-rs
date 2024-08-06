@@ -104,6 +104,7 @@ version = "0.1.0"
 dependencies = [
  "async-channel",
  "async-trait",
+ "cpal",
  "ezsockets",
  "hound",
  "iobuffer",
