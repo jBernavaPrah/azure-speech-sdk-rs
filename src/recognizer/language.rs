@@ -1,5 +1,5 @@
 /// Language that the recognizer should recognize.
-/// 
+///
 /// The language is used to specify the language that the recognizer should recognize.
 /// If the language is not mapped, you can use the `Custom` variant to specify the language.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

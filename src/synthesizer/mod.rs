@@ -1,14 +1,14 @@
 //! Text to speech module.
-//! 
+//!
 //! This module provides a client to interact with the Azure Text to Speech service.
-//! 
+//!
 //! # Example
-//! 
+//!
 //! ```no_run
 //!use azure_speech::{synthesizer, Auth, stream::StreamExt};
 //! use std::env;
 //! use std::error::Error;
-//! 
+//!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn Error>> {
 //!     tracing_subscriber::fmt()
@@ -20,19 +20,19 @@
 //!             env::var("AZURE_SUBSCRIPTION_KEY")
 //!                 .expect("Subscription set on AZURE_SUBSCRIPTION_KEY env"),
 //!         );
-//! 
+//!
 //!     // Set auth and the configuration for the synthesizer
 //!     let client = synthesizer::Client::connect(auth,synthesizer::Config::default()).await.expect("to connect to azure");
 //!     let mut stream = client.synthesize("Hello world!").await.expect("to synthesize");
-//! 
+//!
 //!     while let Some(event) = stream.next().await {
 //!         match event {
 //!              _ => tracing::info!("Event: {:?}", event)
 //!         }
-//!     } 
+//!     }
 //!     Ok(())
 //! }
-//! 
+//!
 //! ```
 
 mod audio_format;

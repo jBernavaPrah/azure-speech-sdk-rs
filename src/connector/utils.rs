@@ -3,7 +3,6 @@ use crate::Headers;
 static CRLF: &str = "\r\n";
 static HEADER_JSON_SEPARATOR: &str = "\r\n\r\n";
 
-
 pub fn make_text_payload(headers: Headers, data: Option<String>) -> String {
     let headers = transform_headers_to_string(headers);
     let data = data.map_or(String::new(), |d| d);
@@ -44,7 +43,6 @@ pub fn extract_headers_and_data_from_binary_message(
 
     Ok((explode_headers_message(headers.as_str()), data))
 }
-
 
 pub fn extract_headers_and_data_from_text_message(
     text: String,

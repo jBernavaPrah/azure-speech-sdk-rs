@@ -1,5 +1,4 @@
 #[allow(dead_code)]
-
 use crate::recognizer::Offset;
 use std::sync::{Arc, Mutex};
 

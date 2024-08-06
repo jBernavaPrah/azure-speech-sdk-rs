@@ -3,10 +3,9 @@ use std::path::Path;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, BufReader};
 
-use azure_speech::Auth;
 use azure_speech::recognizer;
-use azure_speech::stream::{Stream, StreamExt,wrappers::ReceiverStream};
-
+use azure_speech::stream::{wrappers::ReceiverStream, Stream, StreamExt};
+use azure_speech::Auth;
 
 #[tokio::main]
 async fn main() -> azure_speech::Result<()> {
@@ -26,7 +25,11 @@ async fn main() -> azure_speech::Result<()> {
     let audio_stream =
         create_audio_stream("tests/audios/examples_sample_files_turn_on_the_lamp.mp3").await;
     let mut stream = client
-        .recognize(audio_stream, recognizer::ContentType::Mp3, recognizer::Details::file())
+        .recognize(
+            audio_stream,
+            recognizer::ContentType::Mp3,
+            recognizer::Details::file(),
+        )
         .await?;
 
     while let Some(event) = stream.next().await {

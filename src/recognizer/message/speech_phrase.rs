@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::recognizer::message::common::{Language, RecognitionStatus};
-use crate::recognizer::{ Duration, Offset};
+use crate::recognizer::{Duration, Offset};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]

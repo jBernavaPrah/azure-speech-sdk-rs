@@ -3,7 +3,7 @@ use crate::recognizer::Language;
 use serde::{Deserialize, Serialize};
 
 /// The configuration for the recognizer.
-/// 
+///
 /// The configuration is used to set the parameters of the speech recognition.
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -50,7 +50,7 @@ impl Default for Config {
 
 impl Config {
     /// Enable audio logging in service.
-    /// 
+    ///
     /// Audio and content logs are stored either in Microsoft-owned storage, or in your own storage account linked
     /// to your Cognitive Services subscription (Bring Your Own Storage (BYOS) enabled Speech resource).
     /// The logs will be removed after 30 days.
@@ -60,7 +60,7 @@ impl Config {
     }
 
     /// Set Device information.
-    /// 
+    ///
     /// The device information is used to provide information about the source.
     /// Some default values are already set.
     pub fn set_device(mut self, device: Device) -> Self {
@@ -75,7 +75,7 @@ impl Config {
     }
 
     /// Set the default language for the recognition.
-    /// 
+    ///
     /// If needed multiple language detection, use the set_detect_languages method.
     pub fn set_language(mut self, language: Language) -> Self {
         self.languages = vec![language];
@@ -83,7 +83,7 @@ impl Config {
     }
 
     /// Instruct to detect the languages from the audio.
-    /// 
+    ///
     /// The language detection is used to detect the language of the audio.
     /// This could not match the language of the audio, but it is used to provide better recognition.
     pub fn set_detect_languages(
@@ -97,7 +97,7 @@ impl Config {
     }
 
     /// Helping phrases to detect better the context.
-    /// 
+    ///
     /// Untested.
     pub fn set_phrases(mut self, phrases: Vec<String>) -> Self {
         self.phrases = Some(phrases);
@@ -105,7 +105,7 @@ impl Config {
     }
 
     /// Use custom Models.
-    /// 
+    ///
     /// Untested.
     pub fn set_custom_models(mut self, custom_models: Vec<(String, String)>) -> Self {
         self.custom_models = Some(custom_models);
@@ -113,7 +113,7 @@ impl Config {
     }
 
     /// Set the recognition mode.
-    /// 
+    ///
     /// *Only the Conversation mode was tested.*
     #[allow(dead_code)]
     pub fn set_recognition_mode(mut self, mode: RecognitionMode) -> Self {
@@ -122,7 +122,7 @@ impl Config {
     }
 
     /// Set the output format of event responses.
-    /// 
+    ///
     /// You will find the json in each event with Message.json() method.
     pub fn set_output_format(mut self, format: OutputFormat) -> Self {
         self.output_format = format;
@@ -160,7 +160,7 @@ impl Profanity {
 
 #[derive(Debug, Clone)]
 /// The configuration for the silence detection.
-/// 
+///
 /// Untested.
 pub struct Silence {
     #[allow(missing_docs)]
