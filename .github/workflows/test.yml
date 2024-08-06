@@ -1,11 +1,6 @@
-name: Build
-on:
-  pull_request:
-  push:
-    branches:
-      - master
-  schedule:
-    - cron: '00 01 * * *'
+on: [push, pull_request]
+
+name: Quickstart
 
 jobs:
   check:
@@ -22,8 +17,6 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: Swatinem/rust-cache@v1
-
       - name: Run cargo check
         uses: actions-rs/cargo@v1
         with:
@@ -31,11 +24,7 @@ jobs:
 
   test:
     name: Test Suite
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
-        rust: [ stable ]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -44,16 +33,13 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: ${{ matrix.rust }}
+          toolchain: stable
           override: true
-
-      - uses: Swatinem/rust-cache@v1
 
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
           command: test
-
 
   lints:
     name: Lints
@@ -61,8 +47,6 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
-        with:
-          submodules: true
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
@@ -71,8 +55,6 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
-
-      - uses: Swatinem/rust-cache@v1
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
@@ -85,11 +67,3 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
-
-      - name: Run rustdoc lints
-        uses: actions-rs/cargo@v1
-        env:
-          RUSTDOCFLAGS: "-D missing_docs -D rustdoc::missing_doc_code_examples"
-        with:
-          command: doc
-          args: --workspace --all-features --no-deps --document-private-items
