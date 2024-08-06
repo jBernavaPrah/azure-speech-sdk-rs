@@ -8,7 +8,7 @@ use std::sync::PoisonError;
 pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-/// Error struct, used to represent errors in the library.
+/// Error enum, used to represent errors in the library.
 pub enum Error {
     IOError(String),
     InvalidResponse(String),

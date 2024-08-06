@@ -52,14 +52,17 @@ impl Session {
         self.inner.lock().unwrap().audio_offset
     }
 
+    #[allow(dead_code)]
     pub(crate) fn set_audio_offset(&self, audio_offset: Offset) {
         self.inner.lock().unwrap().audio_offset = audio_offset;
     }
 
+    #[allow(dead_code)]
     pub(crate) fn recognition_offset(&self) -> Offset {
         self.inner.lock().unwrap().recognition_offset
     }
 
+    #[allow(dead_code)]
     pub(crate) fn set_recognition_offset(&self, recognition_offset: Offset) {
         self.inner.lock().unwrap().recognition_offset = recognition_offset;
     }

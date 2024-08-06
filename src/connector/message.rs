@@ -4,17 +4,20 @@ use crate::connector::utils::{
 };
 use ezsockets::Message as EzMessage;
 
+/// Data type for message payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Data {
     Binary(Option<Vec<u8>>),
     Text(Option<String>),
 }
 
+/// Headers of the message.
 pub type Headers = Vec<(String, String)>;
 pub static REQUEST_ID_HEADER: &str = "X-RequestId";
 pub static STREAM_ID_HEADER: &str = "X-StreamId";
 pub static PATH_HEADER: &str = "Path";
 
+/// Azure Speech service message struct.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message {
     pub id: String,

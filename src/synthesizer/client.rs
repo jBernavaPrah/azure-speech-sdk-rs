@@ -147,13 +147,7 @@ impl Client {
                 event
             })
             // Stop the stream if there is an error or the session ended.
-            .stop_after(|event| {
-                event.is_err()
-                    || match event {
-                        Ok(Event::SessionEnded(_)) => true,
-                        _ => false,
-                    }
-            }))
+            .stop_after(|event| event.is_err() || matches!(event, Ok(Event::SessionEnded(_)))))
     }
 }
 

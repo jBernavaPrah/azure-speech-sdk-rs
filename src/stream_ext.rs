@@ -71,6 +71,7 @@ where
     }
 }
 
+/// An extension trait for `Stream` that provides a variety of convenient combinator functions.
 pub trait StreamExt: Stream {
     /// Takes elements from this stream until the provided predicate resolves to `true`.
     ///

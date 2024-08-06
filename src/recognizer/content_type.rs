@@ -1,3 +1,7 @@
+
+/// The content type of the audio data.
+/// 
+/// The audio data needs to have the headers (if present) set accordingly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContentType {
     Wav,

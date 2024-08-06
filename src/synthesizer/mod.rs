@@ -1,3 +1,5 @@
+//! Text to speech module.
+
 mod audio_format;
 mod client;
 mod config;

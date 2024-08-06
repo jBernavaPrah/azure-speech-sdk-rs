@@ -4,9 +4,7 @@ use crate::recognizer::session::Session;
 use crate::recognizer::utils::{
     create_audio_message, create_speech_config_message, create_speech_context_message,
 };
-use crate::recognizer::{
-    message, Config, Details, Event, OutputFormat, PrimaryLanguage, Recognized,
-};
+use crate::recognizer::{message, Config, Details, Event, OutputFormat, PrimaryLanguage, Recognized, Confidence};
 use crate::utils::get_azure_hostname_from_region;
 use crate::{stream_ext::StreamExt, Auth, Data, Message};
 use tokio_stream::{Stream, StreamExt as _};
@@ -54,7 +52,7 @@ impl Client {
             "Ocp-Apim-Subscription-Key",
             auth.subscription.to_string().as_str(),
         );
-        url.query_pairs_mut().append_pair("language", lang.as_str());
+        url.query_pairs_mut().append_pair("language", lang.to_string().as_str());
         url.query_pairs_mut()
             .append_pair("format", config.output_format.as_str());
         url.query_pairs_mut()
@@ -230,7 +228,7 @@ fn convert_message_to_event(message: Message, session: Session) -> Option<crate:
                     text: value.text,
                     primary_language: value
                         .primary_language
-                        .map(|l| PrimaryLanguage::new(l.language, l.confidence)),
+                        .map(|l| PrimaryLanguage::new(l.language.into(), l.confidence.map_or(Confidence::Unknown, |c| c.into()))),
                     speaker_id: value.speaker_id,
                 },
                 offset,
@@ -290,7 +288,7 @@ fn convert_message_to_event(message: Message, session: Session) -> Option<crate:
                     text: value.display_text,
                     primary_language: value
                         .primary_language
-                        .map(|l| PrimaryLanguage::new(l.language, l.confidence)),
+                        .map(|l| PrimaryLanguage::new(l.language.into(), l.confidence.map_or(Confidence::Unknown, |c| c.into()))),
                     speaker_id: value.speaker_id,
                 },
                 offset,

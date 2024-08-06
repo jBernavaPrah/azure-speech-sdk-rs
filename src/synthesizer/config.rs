@@ -23,15 +23,20 @@ pub struct Config {
 
     pub(crate) auto_detect_language: bool,
 
-    pub(crate) on_session_started: Option<Arc<Box<dyn Fn(RequestId) + Send + Sync + 'static>>>,
-    pub(crate) on_session_ended: Option<Arc<Box<dyn Fn(RequestId) + Send + Sync + 'static>>>,
-    pub(crate) on_synthesising:
-        Option<Arc<Box<dyn Fn(RequestId, Vec<u8>) + Send + Sync + 'static>>>,
-    pub(crate) on_audio_metadata:
-        Option<Arc<Box<dyn Fn(RequestId, String) + Send + Sync + 'static>>>,
-    pub(crate) on_synthesised: Option<Arc<Box<dyn Fn(RequestId) + Send + Sync + 'static>>>,
-    pub(crate) on_error: Option<Arc<Box<dyn Fn(RequestId, crate::Error) + Send + Sync + 'static>>>,
+    pub(crate) on_session_started: Option<OnSessionStarted>,
+    pub(crate) on_session_ended: Option<OnSessionEnded>,
+    pub(crate) on_synthesising: Option<OnSynthesising>,
+    pub(crate) on_audio_metadata: Option<OnAudioMetadata>,
+    pub(crate) on_synthesised: Option<OnSynthesised>,
+    pub(crate) on_error: Option<OnError>,
 }
+
+pub type OnSessionStarted = Arc<Box<dyn Fn(RequestId) + Send + Sync + 'static>>;
+pub type OnSessionEnded = Arc<Box<dyn Fn(RequestId) + Send + Sync + 'static>>;
+pub type OnSynthesising = Arc<Box<dyn Fn(RequestId, Vec<u8>) + Send + Sync + 'static>>;
+pub type OnAudioMetadata = Arc<Box<dyn Fn(RequestId, String) + Send + Sync + 'static>>;
+pub type OnSynthesised = Arc<Box<dyn Fn(RequestId) + Send + Sync + 'static>>;
+pub type OnError = Arc<Box<dyn Fn(RequestId, crate::Error) + Send + Sync + 'static>>;
 
 impl Config {
     pub fn new() -> Self {
