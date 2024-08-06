@@ -63,11 +63,12 @@ pub(crate) fn create_speech_context_message(request_id: String, config: &Config)
         });
     }
 
+    
     if config.languages.len() > 1 {
         context["languageId"] = json!({
             "mode": config.language_detect_mode.as_ref().unwrap(),
             "Priority": "PrioritizeLatency",
-            "languages": config.languages.iter().map(|x| x.as_str()).collect::<Vec<&'static str>>(),
+            "languages": config.languages.iter().map(|x| x.to_string()).collect::<Vec<String>>(),
             "onSuccess": {
                 "action": "Recognize"
             },

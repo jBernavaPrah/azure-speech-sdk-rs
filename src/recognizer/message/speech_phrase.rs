@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::recognizer::message::common::{Language, RecognitionStatus};
-use crate::recognizer::{Confidence, Duration, Offset};
+use crate::recognizer::{ Duration, Offset};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -39,7 +39,7 @@ pub(crate) struct DetailedSpeechPhrase {
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct Phrase {
     #[serde(rename = "Confidence")]
-    pub(crate) confidence: Option<Confidence>,
+    pub(crate) confidence: Option<String>,
     #[serde(rename = "Lexical")]
     pub(crate) lexical: String,
     #[serde(rename = "ITN")]
