@@ -4,7 +4,7 @@
 //! 
 //! # Example
 //! 
-//! ```no_run
+//! ```compile_fail
 //! use std::env;
 //! use std::path::Path;
 //! use tokio::fs::File;

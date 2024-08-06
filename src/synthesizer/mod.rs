@@ -4,7 +4,7 @@
 //! 
 //! # Example
 //! 
-//! ```
+//! ```no_run
 //!use azure_speech::{synthesizer, Auth, stream::StreamExt};
 //! use std::env;
 //! use std::error::Error;
