@@ -142,7 +142,6 @@ pub enum Language {
 
 impl Display for Language {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        
         let value = match self {
             Language::Custom(s) => s.as_str(),
             Language::AfZa => "af-ZA",
@@ -275,7 +274,7 @@ impl Display for Language {
             Language::ZhTw => "zh-TW",
             Language::ZuZa => "zu-ZA",
         };
-        
+
         write!(f, "{}", value)
     }
 }
