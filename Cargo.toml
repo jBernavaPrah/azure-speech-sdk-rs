@@ -47,10 +47,9 @@ async-channel = "1.9.0"
 [dev-dependencies]
 tokio = { version = "1.36.0", features = ["full"] }
 
-rodio = { version = "0.19.0", features = ["symphonia", "symphonia-all"], default-features = false }
+rodio = { version = "0.19.0", features = ["symphonia", "symphonia-wav", "symphonia-mp3"], default-features = false }
 
 hound = "3.5"
-cpal = "0.15.3"
 
 reqwest = { version = "0.12", features = ["stream"] }
 iobuffer = "0.2.0"
