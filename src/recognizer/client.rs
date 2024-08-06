@@ -1,135 +1,319 @@
-use log::{error, info};
-use tokio::sync::mpsc::{Receiver, Sender};
-use uuid::Uuid;
-use crate::connector::connect;
-use crate::connector::message::Message;
-use crate::recognizer::event::{CancelledReason, EventError, FromMessage};
-use crate::recognizer::event::{EventBase, Event};
-use crate::recognizer::config::ResolverConfig;
-use crate::recognizer::Source;
-use crate::recognizer::utils::{create_speech_audio_headers_message, create_speech_audio_message, create_speech_config_message, create_speech_context_message, generate_uri_for_stt_speech_azure};
+use crate::connector::Client as BaseClient;
+use crate::recognizer::content_type::ContentType;
+use crate::recognizer::session::Session;
+use crate::recognizer::utils::{
+    create_audio_message, create_speech_config_message, create_speech_context_message,
+};
+use crate::recognizer::{
+    message, Confidence, Config, Details, Event, OutputFormat, PrimaryLanguage, Recognized,
+};
+use crate::utils::get_azure_hostname_from_region;
+use crate::{stream_ext::StreamExt, Auth, Data, Message};
+use tokio_stream::{Stream, StreamExt as _};
+use url::Url;
 
-pub async fn recognize<T>(config: ResolverConfig, source: Source) -> crate::Result<(Sender<Event<T>>, Receiver<Event<T>>)>
-    where T: Send + FromMessage<T> + 'static,
-{
+static BUFFER_SIZE: usize = 4096;
+
+/// Recognizer Client.
+#[derive(Clone)]
+pub struct Client {
+    /// The client to send and receive messages.
+    pub client: BaseClient,
+    config: Config,
+}
+
+impl Client {
+    pub(crate) fn new(client: BaseClient, config: Config) -> Self {
+        Self { client, config }
+    }
+
+    pub async fn connect(auth: Auth, config: Config) -> crate::Result<Self> {
+        let mut url = Url::parse(
+            format!(
+                "wss://{}.stt.speech{}",
+                auth.region,
+                get_azure_hostname_from_region(auth.region.as_str())
+            )
+            .as_str(),
+        )?;
+
+        url.set_path(
+            format!(
+                "/speech/recognition/{}/cognitiveservices/v1",
+                config.mode.as_str()
+            )
+            .as_str(),
+        );
+
+        let lang = config
+            .languages
+            .first()
+            .expect("Select at least one language!");
+
+        url.query_pairs_mut().append_pair(
+            "Ocp-Apim-Subscription-Key",
+            auth.subscription.to_string().as_str(),
+        );
+        url.query_pairs_mut()
+            .append_pair("language", lang.to_string().as_str());
+        url.query_pairs_mut()
+            .append_pair("format", config.output_format.as_str());
+        url.query_pairs_mut()
+            .append_pair("profanity", config.profanity.as_str());
+        url.query_pairs_mut()
+            .append_pair("storeAudio", config.store_audio.to_string().as_str());
+
+        if config.output_format == OutputFormat::Detailed {
+            url.query_pairs_mut()
+                .append_pair("wordLevelTimestamps", "true");
+        }
+
+        if config.languages.len() > 1 {
+            url.query_pairs_mut()
+                .append_pair("lidEnabled", true.to_string().as_str());
+        }
+
+        if let Some(ref connection_id) = config.connection_id {
+            url.query_pairs_mut()
+                .append_pair("X-ConnectionId", connection_id.as_str());
+        }
+
+        let client_config =
+            ezsockets::ClientConfig::new(url.as_str()).max_initial_connect_attempts(3);
+
+        let client = BaseClient::connect(client_config).await?;
+        Ok(Self::new(client, config))
+    }
+
+    pub async fn disconnect(self) -> crate::Result<()> {
+        self.client.disconnect().await
+    }
+}
+
+impl Client {
+    /// Recognize audio from a stream.
+    pub async fn recognize<A>(
+        &self,
+        stream: A,
+        content_type: ContentType,
+        details: Details,
+    ) -> crate::Result<impl Stream<Item = crate::Result<Event>>>
+    where
+        A: Stream<Item = Vec<u8>> + Send + 'static,
     {
-        let (event_tx, event_rx) = tokio::sync::mpsc::channel(1024);
+        let mut audio = Box::pin(stream);
 
-        let uuid = Uuid::new_v4();
+        let messages = self.client.stream().await?;
 
-        let (upstream_sender, upstream_receiver) = connect(generate_uri_for_stt_speech_azure(&config)).await?;
+        let session = Session::new(uuid::Uuid::new_v4());
+        let config = self.config.clone();
+        let request_id = session.request_id().to_string();
 
-        let audio_event_tx = event_tx.clone();
+        self.client.send_text(create_speech_config_message(
+            request_id.clone(),
+            &config,
+            &details,
+        ))?;
+        self.client
+            .send_text(create_speech_context_message(request_id.clone(), &config))?;
 
+        // Here I'm moving away from the original code.
+        // I'm not interest anymore in the audio headers, but in the content type of the stream.
+        self.client.send_binary(create_audio_message(
+            request_id.clone(),
+            Some(content_type),
+            None,
+        ))?;
+
+        let client = self.client.clone();
+        let session1 = session.clone();
         tokio::spawn(async move {
-            audio_event_tx.send(Event::Base(EventBase::SessionStarted { session_id: uuid })).await.unwrap();
+            // todo: add throttle to the audio stream.
+            // src/common.speech/ServiceRecognizerBase.ts:857
 
-            match upstream_audio(uuid, config, source, upstream_sender).await {
-                Ok(_) => info!("Upstream audio finished"),
-                Err(e) => {
-                    error!("Error in upstream audio: {:?}", e);
-                    audio_event_tx.send(Event::Base(EventBase::Cancelled { reason: CancelledReason::RuntimeError })).await.unwrap();
+            let mut buffer = Vec::with_capacity(BUFFER_SIZE);
+
+            while let Some(chunk) = audio.next().await {
+                buffer.extend(chunk);
+                while buffer.len() >= BUFFER_SIZE {
+                    let data = buffer.drain(..BUFFER_SIZE).collect();
+                    if let Err(e) = client.send_binary(create_audio_message(
+                        session1.request_id().to_string(),
+                        None,
+                        Some(data),
+                    )) {
+                        tracing::error!("Error: {:?}", e);
+                        return;
+                    }
                 }
             }
+
+            while !buffer.is_empty() {
+                let data = buffer.drain(..BUFFER_SIZE).collect();
+                let _ = client.send_binary(create_audio_message(
+                    session1.request_id().to_string(),
+                    None,
+                    Some(data),
+                ));
+            }
+            // notify that we have finished sending the audio.
+            let _ = client.send_binary(create_audio_message(
+                session1.request_id().to_string(),
+                None,
+                None,
+            ));
+            session1.set_audio_completed(true);
         });
 
-        tokio::spawn(upstream_listen(uuid, upstream_receiver, event_tx.clone()));
-
-        Ok((event_tx, event_rx))
+        let session2 = session.clone();
+        let session3 = session.clone();
+        Ok(messages
+            // Map errors.
+            .map(move |message| match message {
+                Ok(message) => message,
+                Err(e) => Err(crate::Error::InternalError(e.to_string())),
+            })
+            // Filter out messages that are not from the current session.
+            .filter(move |message| match message {
+                Ok(message) => message.id == request_id.clone(),
+                Err(_) => true,
+            })
+            .filter_map(move |message| match message {
+                Ok(message) => convert_message_to_event(message, session2.clone()),
+                Err(e) => Some(Err(e)),
+            })
+            // Merge the session started event with the other events.
+            .merge(tokio_stream::iter(vec![Ok(Event::SessionStarted(
+                session3.request_id(),
+            ))]))
+            // Handle the events and call the callbacks.
+            .map(move |event| {
+                // todo: implement the callbacks for events
+                event
+            })
+            // Stop the stream if there is an error or the session ended.
+            .stop_after(move |event| event.is_err() || matches!(event, Ok(Event::SessionEnded(_)))))
     }
 }
 
-
-async fn upstream_audio(uuid: Uuid, config: ResolverConfig, mut source: Source, upstream_sender: Sender<Message>) -> crate::Result<()>
-
-{
-
-    // send config
-    upstream_sender.send(create_speech_config_message(uuid, &config, &source)).await?;
-
-    // send context
-    upstream_sender.send(create_speech_context_message(uuid, &config)).await?;
-
-    // send audio headers
-    upstream_sender.send(create_speech_audio_headers_message(uuid, "audio/x-wav".to_string(), source.spec)).await?;
-
-    // load buffer and send audio data.
-    // buffer length is 4kb
-    let mut buffer: Vec<u8> = Vec::with_capacity(4096);
-
-    while let Some(data) = source.stream.recv().await {
-        buffer.extend_from_slice(data.to_bytes().as_ref());
-
-        if buffer.len() < 4096 {
-            continue;
+fn convert_message_to_event(message: Message, session: Session) -> Option<crate::Result<Event>> {
+    match (message.path.as_str(), message.data, message.headers) {
+        // todo: check if another turn has started, before the latest finished?
+        ("turn.start", _, _) => None,
+        ("speech.startdetected", Data::Text(Some(data)), _) => {
+            let value = match serde_json::from_str::<message::SpeechStartDetected>(&data) {
+                Ok(value) => value,
+                Err(e) => return Some(Err(crate::Error::ParseError(e.to_string()))),
+            };
+            Some(Ok(Event::StartDetected(session.request_id(), value.offset)))
+        }
+        ("speech.enddetected", Data::Text(Some(data)), _) => {
+            let value =
+                serde_json::from_str::<message::SpeechEndDetected>(&data).unwrap_or_default();
+            Some(Ok(Event::EndDetected(session.request_id(), value.offset)))
         }
 
-        // remove from the buffer the first 4096 bytes. Leave in the buffer the rest of the data
-        let first_part = buffer.drain(..4096).collect();
+        // speech recognizer
+        ("speech.hypothesis", Data::Text(Some(data)), _)
+        | ("speech.fragment", Data::Text(Some(data)), _) => {
+            let value = match serde_json::from_str::<message::SpeechHypothesis>(&data) {
+                Ok(value) => value,
+                Err(e) => return Some(Err(crate::Error::ParseError(e.to_string()))),
+            };
 
-        // send audio data
-        upstream_sender.send(create_speech_audio_message(uuid, Some(first_part))).await?;
-    }
+            let offset = value.offset + session.audio_offset();
 
-    if buffer.len() > 0 {
-        upstream_sender.send(create_speech_audio_message(uuid, Some(buffer))).await?
-    }
+            session.on_hypothesis_received(offset);
 
-    // end of audio data
-    upstream_sender.send(create_speech_audio_message(uuid, None)).await?;
-
-    info!("Exiting sending loop");
-
-    Ok(())
-}
-
-async fn upstream_listen<T>(uuid: Uuid, mut upstream_receiver: Receiver<Message>, event_tx: Sender<Event<T>>) -> ()
-    where T: Send + FromMessage<T> + 'static {
-    while let Some(message) = upstream_receiver.recv().await {
-
-        // minimum requirements to continue
-        if message.path().is_none() {
-            error!("Received message without a path");
-            event_tx.send(Event::Base(EventBase::Cancelled { reason: CancelledReason::RuntimeError })).await.unwrap();
-
-            break;
+            Some(Ok(Event::Recognizing(
+                session.request_id(),
+                Recognized {
+                    text: value.text,
+                    primary_language: value.primary_language.map(|l| {
+                        PrimaryLanguage::new(
+                            l.language.into(),
+                            l.confidence.map_or(Confidence::Unknown, |c| c.into()),
+                        )
+                    }),
+                    speaker_id: value.speaker_id,
+                },
+                offset,
+                value.duration,
+                data,
+            )))
         }
 
-        if message.is_text() && message.path() == Some("turn.start".to_string()) {
-            continue;
-        }
+        ("speech.phrase", Data::Text(Some(data)), _) => {
+            // general check
+            let value = match serde_json::from_str::<message::SpeechPhrase>(&data) {
+                Ok(value) => value,
+                Err(e) => return Some(Err(crate::Error::ParseError(e.to_string()))),
+            };
 
-        if message.is_text() && message.path() == Some("turn.end".to_string()) {
-            event_tx.send(Event::Base(EventBase::SessionStopped { session_id: uuid })).await.unwrap();
-            break;
-        }
+            session.on_phrase_recognized(
+                value.offset.unwrap_or(0) + value.duration.unwrap_or(0) + session.audio_offset(),
+            );
 
+            let recognition_status = &value.recognition_status;
+            let _error: Option<crate::Error> = match recognition_status.into() {
+                None => None,
+                Some(e) => return Some(Err(e)),
+            };
 
-        let event = match T::from_message(&message) {
-            Err(EventError::Unprocessable) | Err(EventError::NoPath) => {
-                // try to convert the message to a base event
-                EventBase::from_message(&message)
-                    .unwrap_or_else(|e| {
-                        // if also this is not possible, then cancel the session!
-                        error!("Error converting message to event. Error: {:?} - Message: {:?}", e, message);
-                        Event::Base(EventBase::Cancelled { reason: CancelledReason::RuntimeError })
-                    })
+            if recognition_status.is_end_of_dictation() {
+                // this case is already mapped in the Event::EndDetected
+                // if not correct, I will add a separate "Event::EndOfDictation"
+                return None;
             }
-            Err(EventError::Skip) => continue,
-            Ok(e) => e,
-        };
 
-        // if the event is a cancel event, then exit the loop
-        if let Event::Base(EventBase::Cancelled { .. }) = event {
-            // notify the client that the session is cancelled
-            event_tx.send(event).await.unwrap();
-            // exit the loop
-            break;
+            //todo: check if was required the simple or detailed recognition.
+            // in case the detailed was requested, then get the first NBest, if present, otherwise teh DisplayText.
+
+            let offset = value.offset.unwrap_or(0) + session.audio_offset();
+            let duration = value.duration.unwrap_or(0);
+
+            if value.recognition_status.is_no_match() {
+                return Some(Ok(Event::UnMatch(
+                    session.request_id(),
+                    offset,
+                    duration,
+                    data,
+                )));
+            }
+
+            // todo: in case of detailed phrase, we need to correct the offset and duration.
+
+            let value = match serde_json::from_str::<message::SimpleSpeechPhrase>(&data) {
+                Ok(value) => value,
+                Err(e) => return Some(Err(crate::Error::ParseError(e.to_string()))),
+            };
+
+            Some(Ok(Event::Recognized(
+                session.request_id(),
+                Recognized {
+                    text: value.display_text,
+                    primary_language: value.primary_language.map(|l| {
+                        PrimaryLanguage::new(
+                            l.language.into(),
+                            l.confidence.map_or(Confidence::Unknown, |c| c.into()),
+                        )
+                    }),
+                    speaker_id: value.speaker_id,
+                },
+                offset,
+                duration,
+                data,
+            )))
         }
 
-        // send the event to the client
-        event_tx.send(event).await.unwrap();
+        ("turn.end", _, _) => {
+            if session.is_audio_completed() {
+                return Some(Ok(Event::SessionEnded(session.request_id())));
+            };
+
+            None
+        }
+
+        _ => None,
     }
-    drop(event_tx);
-    info!("Exiting listen loop");
 }

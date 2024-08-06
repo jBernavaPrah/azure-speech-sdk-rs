@@ -1,104 +1,64 @@
-use std::{env, path};
-use hound::{WavReader};
-use log::{info, LevelFilter};
-use simplelog::{ColorChoice, Config, TerminalMode, TermLogger};
-use azure_speech::{Auth, recognizer};
-use azure_speech::errors::Error;
-use azure_speech::recognizer::{Details, Event, EventBase, Source};
-use azure_speech::recognizer::config::{LanguageDetectMode, ResolverConfig};
-use azure_speech::recognizer::speech::EventSpeech;
+use std::env;
+use std::path::Path;
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt, BufReader};
+
+use azure_speech::recognizer;
+use azure_speech::stream::{wrappers::ReceiverStream, Stream, StreamExt};
+use azure_speech::Auth;
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
-
+async fn main() -> azure_speech::Result<()> {
     // Initialize the logger
-    TermLogger::init(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).unwrap();
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
 
-    // Configure the resolver 
-    let mut config = ResolverConfig::new(Auth::from_subscription(
-
-        // Add your Azure region and subscription key here. 
-        // Create a free account at https://azure.microsoft.com/en-us/try/cognitive-services/ to get the subscription key
-        // and the region where the subscription is created.
-
+    let auth = Auth::from_subscription(
         env::var("AZURE_REGION").expect("Region set on AZURE_REGION env"),
         env::var("AZURE_SUBSCRIPTION_KEY").expect("Subscription set on AZURE_SUBSCRIPTION_KEY env"),
-    ));
-    config.set_detect_languages(vec!["it-it", "en-us"], LanguageDetectMode::Continuous);
-    //config.set_output_format(OutputFormat::Simple);
-    // ...
+    );
 
+    let client = recognizer::Client::connect(auth, recognizer::Config::default()).await?;
 
-    // Create a source for recognizer. This will be used to send the audio data to the recognizer
-    let source = create_source_from_file("tests/audios/whatstheweatherlike.wav");
-    let mut stream = recognizer::speech(config, source).await?;
+    // if you change the path, make sure to change the content-type accordingly in the next line
+    let audio_stream =
+        create_audio_stream("tests/audios/examples_sample_files_turn_on_the_lamp.mp3").await;
+    let mut stream = client
+        .recognize(
+            audio_stream,
+            recognizer::ContentType::Mp3,
+            recognizer::Details::file(),
+        )
+        .await?;
 
-    while let Some(r) = stream.recv().await {
-        match r {
-            // Base Events are associated with Event
-            Event::Base(EventBase::Cancelled { reason }) => {
-                info!("Cancelled {:?}", reason);
-                break;
-            }
-
-            Event::Base(EventBase::SessionStarted { session_id }) => {
-                info!("SessionStarted: {:?}", session_id);
-            }
-
-            Event::Base(EventBase::SessionStopped { session_id }) => {
-                info!("SessionStopped: {:?}", session_id);
-                break;
-            }
-
-            Event::Specific(EventSpeech::UnMatch { raw }) => {
-                info!("UnMatch: {:?}", raw);
-            }
-            Event::Specific(EventSpeech::Recognized { text, raw, .. }) => {
-                info!("Recognized: {} raw: {:?}", text, raw );
-            }
-            Event::Specific(EventSpeech::Recognizing { text, .. }) => {
-                info!("Recognizing: {:?}", text);
-            }
-
-            _ => info!("Received: {:?}", r)
-        }
+    while let Some(event) = stream.next().await {
+        tracing::info!("Event: {:?}", event);
     }
 
-    info!("End of the recognition.");
+    tracing::info!("Completed!");
 
     Ok(())
 }
 
-fn create_source_from_file<P: AsRef<path::Path>>(filename: P) -> Source
-{
-    let mut file = WavReader::open(filename).expect("Error opening file");
+async fn create_audio_stream(path: impl AsRef<Path>) -> impl Stream<Item = Vec<u8>> {
+    let (tx, rx) = tokio::sync::mpsc::channel(1024);
+    let file = File::open(path).await.expect("Failed to open file");
+    let mut reader = BufReader::new(file);
 
-    let (source, sender) = Source::new(file.spec().into(), Details::file());
     tokio::spawn(async move {
-        let bits_per_sample = file.spec().bits_per_sample;
-        let sample_format = file.spec().sample_format;
-
-        match (sample_format, bits_per_sample) {
-            (hound::SampleFormat::Int, 16) => {
-                for s in file.samples::<i16>().filter_map(Result::ok) {
-                    sender.send(recognizer::Sample::from(s)).await.unwrap();
-                }
+        let mut chunk = vec![0; 4096];
+        while let Ok(n) = reader.read(&mut chunk).await {
+            if n == 0 {
+                break;
             }
-            (hound::SampleFormat::Int, 32) => {
-                for s in file.samples::<i32>().filter_map(Result::ok) {
-                    sender.send(recognizer::Sample::from(s)).await.unwrap();
-                }
+            if tx.send(chunk.clone()).await.is_err() {
+                tracing::error!("Error sending data");
+                break;
             }
-
-            (hound::SampleFormat::Float, 32) => {
-                for s in file.samples::<f32>().filter_map(Result::ok) {
-                    sender.send(recognizer::Sample::from(s)).await.unwrap();
-                }
-            }
-            _ => panic!("Unsupported sample format")
         }
+        drop(tx);
     });
-    source
+
+    ReceiverStream::new(rx)
 }
-
-

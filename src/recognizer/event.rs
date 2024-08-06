@@ -1,122 +1,106 @@
-use serde_json::Value;
-use uuid::Uuid;
-use crate::connector::message::Message;
-use std::fmt;
+use crate::recognizer::Language;
+use crate::RequestId;
 
+/// The raw text of message.
+///
+/// The raw message is the message received from the speech recognition service.
+pub type RawMessage = String;
 
-#[derive(Debug)]
-/// Event for the speech recognition
-pub enum Event<T> {
-    /// Base event.
-    Base(EventBase),
-    /// Specific event.
-    Specific(T),
-}
-
-#[derive(Debug)]
-pub(crate) enum EventError {
-    NoPath,
-    Unprocessable,
-    Skip,
-}
-
-pub(crate) trait FromMessage<T> {
-    fn from_message(value: &Message) -> Result<Event<T>, EventError>;
-}
-
-#[derive(Debug)]
-/// Base event for the speech recognition
-pub enum EventBase {
-    /// The hole conversation was cancelled.
-    /// Stop and retry the conversation. If the error persists, open an issue in GitHub.
-    Cancelled {
-        /// The reason for the cancellation.
-        reason: CancelledReason
-    },
-    /// The speech recognition started.
-    SpeechStartDetected {
-        /// The offset of the speech recognition. 
-        /// The offset is the time in milliseconds from the start of the conversation.
-        /// *Attention*: I'm not sure if this is the correct explanation.
-        offset: u32
-    },
-    /// The speech recognition ended.
-    SpeechEndDetected {
-        /// The offset of the speech recognition.
-        /// The offset is the time in milliseconds from the start of the conversation.
-        /// *Attention*: I'm not sure if this is the correct explanation.
-        offset: u32
-    },
+/// Recognizer events.
+///
+/// The events are used to notify the user of the progress of the speech recognition.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Event {
     /// The session started.
-    SessionStarted {
-        /// The session id.
-        session_id: Uuid
-    },
-    /// The session stopped.
-    SessionStopped {
-        /// The session id.
-        session_id: Uuid
-    },
+    SessionStarted(RequestId),
+
+    /// The session ended.
+    SessionEnded(RequestId),
+
+    /// The speech recognition started.
+    StartDetected(RequestId, Offset),
+    /// The speech recognition ended.
+    EndDetected(RequestId, Offset),
+
+    /// Recognizing event.
+    Recognizing(RequestId, Recognized, Offset, Duration, RawMessage),
+
+    /// Recognized event.
+    Recognized(RequestId, Recognized, Offset, Duration, RawMessage),
+
+    /// UnMatch event.
+    /// This event is triggered when the speech recognition does not match any text.
+    UnMatch(RequestId, Offset, Duration, RawMessage),
+    //Cancelled(RequestId, Offset, crate::Error),
 }
 
-impl<T> FromMessage<T> for EventBase {
-    fn from_message(message: &Message) -> Result<Event<T>, EventError> {
-        if message.is_binary() || message.json().is_none() {
-            return Err(EventError::Unprocessable);
-        }
+/// The offset of the speech recognition.
+///
+/// The offset is the time in milliseconds from the start of the conversation.
+pub type Offset = u64;
 
-        let json_message = message.json().unwrap();
+/// The duration of the speech recognition.
+///
+/// The duration is the time in milliseconds of the speech recognition.
+pub type Duration = u64;
 
-        match message.path().unwrap().as_str() {
-            "speech.startdetected" => Ok(Event::Base(EventBase::SpeechStartDetected {
-                offset: json_message.get("Offset").unwrap_or(&Value::Number(0.into())).as_u64().unwrap() as u32,
-            })),
-            "speech.enddetected" => Ok(Event::Base(EventBase::SpeechEndDetected {
-                offset: json_message.get("Offset").unwrap_or(&Value::Number(0.into())).as_u64().unwrap() as u32,
-            })),
-            _ => Err(EventError::NoPath)
+/// The recognized text.
+///
+/// Contains the recognized text, the primary language and the speaker id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Recognized {
+    /// The recognized text.
+    pub text: String,
+    /// The primary language of the recognized text.
+    pub primary_language: Option<PrimaryLanguage>,
+    /// The speaker id of the recognized text.
+    /// This will be None if the detection of the speaker is not activated.
+    pub speaker_id: Option<String>,
+}
+
+/// The confidence of the speech recognition.
+///
+/// The confidence is the confidence of the speech recognition.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum Confidence {
+    Low,
+    Normal,
+    High,
+    #[default]
+    Unknown,
+}
+
+impl From<&str> for Confidence {
+    fn from(value: &str) -> Self {
+        value.to_string().into()
+    }
+}
+
+impl From<String> for Confidence {
+    fn from(value: String) -> Self {
+        match value.to_lowercase().as_str() {
+            "low" => Confidence::Low,
+            "normal" => Confidence::Normal,
+            "high" => Confidence::High,
+            _ => Confidence::Unknown,
         }
     }
 }
 
-#[derive(Debug)]
-/// Reason for the cancellation of the conversation.
-/// Attention. Not all reasons are implemented yet.
-pub enum CancelledReason {
-    /// Indicates an authentication error.
-    AuthenticationFailure,
-
-    /// Indicates that one or more recognition parameters are invalid.
-    BadRequestParameters,
-
-    /// Indicates that the number of parallel requests exceeded the number of allowed
-    /// concurrent transcriptions for the subscription.
-    TooManyRequests,
-
-    /// Indicates a connection error.
-    ConnectionFailure,
-
-    /// Indicates a time-out error when waiting for response from service.
-    ServiceTimeout,
-
-    /// Indicates that an error is returned by the service.
-    ServiceError,
-
-    /// Indicates an unexpected runtime error.
-    RuntimeError,
-
-    /// Indicates an quota overrun on existing key.
-    Forbidden,
+/// Primary language
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimaryLanguage {
+    /// The language code
+    pub language: Language,
+    /// The confidence of the language detection
+    pub confidence: Confidence,
 }
 
-
-impl fmt::Display for CancelledReason {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            CancelledReason::Forbidden => write!(f, "The recognizer is using a free subscription that ran out of quota."),
-            CancelledReason::BadRequestParameters => write!(f, "Invalid parameter or unsupported audio format in the request."),
-            CancelledReason::TooManyRequests => write!(f, "The number of parallel requests exceeded the number of allowed concurrent transcriptions."),
-            _ => write!(f, "The speech service encountered an internal error and could not continue."),
+impl PrimaryLanguage {
+    pub(crate) fn new(language: Language, confidence: Confidence) -> Self {
+        Self {
+            language,
+            confidence,
         }
     }
 }

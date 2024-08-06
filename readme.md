@@ -1,43 +1,31 @@
 # Azure Speech SDK - Rust
 
-This is pure Rust library for working with the Azure Speech service.
+Welcome to the Azure Speech SDK, a pure Rust library for interacting with Azure Speech Services.
 
-The goal is to provide an easy-to-install and simple-to-use interface for working with the Azure Speech service.
+## Overview
 
-This project is inspired by the official Azure Speech SDK for Javascript (https://github.com/microsoft/cognitive-services-speech-sdk-js).
-
-**It is currently under development and not yet ready for production use.**
-I recommend using the Rust Azure Speech SDK (https://github.com/jabber-tools/cognitive-services-speech-sdk-rs) for production use in the meantime.
+This library aims to provide an easy-to-install and straightforward interface for working with Azure Speech Services. Inspired by the official [Azure Speech SDK for JavaScript](https://github.com/microsoft/cognitive-services-speech-sdk-js), it is designed to be simple and user-friendly.
 
 ## Why This Library?
 
-The motivation behind creating this library was twofold:
+The motivation behind creating this library includes:
 
-1. To gain a deeper understanding of Rust.
-2. To provide a Rust implementation of the Azure Speech SDK that doesn't require the C++ SDK as a dependency and is less complex than existing implementations (see https://github.com/jabber-tools/cognitive-services-speech-sdk-rs for reference).
+1. Gaining a deeper understanding of Rust.
+2. Providing a Rust implementation of the Azure Speech SDK that eliminates the need for the C++ SDK dependency, offering a simpler alternative to existing implementations.
 
 ## Installation
 
-Use the following command to add the library to your project:
+Add this library to your project using the following command:
 
 ```bash
-  cargo add azure_speech
-```
-
-Add the following to your `Cargo.toml` file:
-```toml
-[dependencies]
-# ....
-azure_speech = { version = "0.1" }
+cargo add azure_speech
 ```
 
 ## Usage
-For usage examples, please refer to the examples folder in the repository.  
+For usage examples, please refer to the examples folder in the repository.
 
 ## Contributing
-Feel free to submit PRs and raise issues. Your feedback and contributions can help shape the development of this library.  
+We welcome contributions! Feel free to submit pull requests and raise issues. Your feedback and contributions are invaluable in shaping the development of this library.
 
 ## Support
-If you find this project useful, please consider giving it a star on GitHub. 
-
-This helps me know that people are interested.  
+If you find this project useful, please consider giving it a star on GitHub. Your support is greatly appreciated.

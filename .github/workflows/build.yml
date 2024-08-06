@@ -1,0 +1,70 @@
+
+name: Build
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: '00 01 * * *'
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v1
+
+      - name: Run cargo check
+        run: cargo check --all --all-features
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt install librust-alsa-sys-dev
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v1
+
+      - run: cargo test --all --all-features
+
+
+  lints:
+    name: Lints
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+
+      - uses: Swatinem/rust-cache@v1
+
+      - name: Run cargo fmt
+        run: cargo fmt --all -- --check
+
+      - name: Run cargo clippy
+        run: cargo  clippy -- -D warnings
+
+      - name: Run rustdoc lints
+        # env:
+          # RUSTDOCFLAGS: "-D missing_docs -D rustdoc::missing_doc_code_examples"
+        run: cargo doc --workspace --all-features --no-deps --document-private-items
