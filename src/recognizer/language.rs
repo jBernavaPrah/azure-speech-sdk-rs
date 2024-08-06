@@ -1,3 +1,6 @@
+use std::fmt;
+use std::fmt::{Display, Formatter};
+
 /// Language that the recognizer should recognize.
 ///
 /// The language is used to specify the language that the recognizer should recognize.
@@ -137,9 +140,10 @@ pub enum Language {
     Custom(String),
 }
 
-impl Language {
-    pub fn to_string(&self) -> String {
-        match self {
+impl Display for Language {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        
+        let value = match self {
             Language::Custom(s) => s.as_str(),
             Language::AfZa => "af-ZA",
             Language::AmEt => "am-ET",
@@ -270,8 +274,9 @@ impl Language {
             Language::ZhHk => "zh-HK",
             Language::ZhTw => "zh-TW",
             Language::ZuZa => "zu-ZA",
-        }
-        .to_string()
+        };
+        
+        write!(f, "{}", value)
     }
 }
 
