@@ -53,7 +53,7 @@ impl From<Message> for EzMessage {
             (PATH_HEADER.to_string(), message.path),
         ];
 
-        let headers = headers.into_iter().chain(message.headers.into_iter()).collect();
+        let headers = headers.into_iter().chain(message.headers).collect();
 
         match message.data {
             Data::Binary(data) => EzMessage::Binary(make_binary_payload(headers, data)),

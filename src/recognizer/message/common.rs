@@ -22,7 +22,6 @@ pub(crate) enum RecognitionStatus {
 }
 
 impl From<&RecognitionStatus> for Option<crate::Error> {
-    
     fn from(value: &RecognitionStatus) -> Option<crate::Error> {
         match value {
             RecognitionStatus::Error => Some(crate::Error::RuntimeError("An error occurred during the recognition.".to_string())),
@@ -32,40 +31,27 @@ impl From<&RecognitionStatus> for Option<crate::Error> {
             _ => None,
         }
     }
-    
 }
 
 #[allow(dead_code)]
 impl RecognitionStatus {
     pub(crate) fn is_cancelled(&self) -> bool {
-        match self {
-            RecognitionStatus::Error
+        matches!(self, RecognitionStatus::Error
             | RecognitionStatus::BadRequest
-            | RecognitionStatus::Forbidden => true,
-            _ => false,
-        }
+            | RecognitionStatus::Forbidden)
     }
 
     pub(crate) fn is_success(&self) -> bool {
-        match self {
-            RecognitionStatus::Success => true,
-            _ => false,
-        }
+        matches!(self, RecognitionStatus::Success)
     }
 
     pub(crate) fn is_no_match(&self) -> bool {
-        match self {
-            RecognitionStatus::NoMatch
-            | RecognitionStatus::InitialSilenceTimeout
-            | RecognitionStatus::BabbleTimeout => true,
-            _ => false,
-        }
+        matches!(self, RecognitionStatus::NoMatch
+             | RecognitionStatus::InitialSilenceTimeout
+             | RecognitionStatus::BabbleTimeout)
     }
-    
+
     pub(crate) fn is_end_of_dictation(&self) -> bool {
-        match self {
-            RecognitionStatus::EndOfDictation => true,
-            _ => false,
-        }
+        matches!(self, RecognitionStatus::EndOfDictation)
     }
 }

@@ -49,11 +49,11 @@ where
         if !*self.as_mut().project().done {
             self.as_mut().project().stream.poll_next(cx).map(|ready| {
                 let ready = ready.
-                    and_then(|item| {
+                    map(|item| {
                         if (self.as_mut().project().predicate)(&item) {
                             *self.as_mut().project().done = true;
                         }
-                        Some(item)
+                        item
                     });
                 ready
             })
@@ -89,7 +89,7 @@ pub trait StreamExt: Stream {
     ///
     /// ```
     /// use tokio_stream::{self as stream, StreamExt as _};
-    /// use azure_speech::StreamExt  as _;
+    /// use azure_speech::stream::StreamExt  as _;
     ///
     /// #[tokio::main]
     /// async fn main() {

@@ -66,12 +66,12 @@ pub(crate) fn create_speech_context_message(request_id: String, config: &Config)
             }
         });
 
-        let custom_models: Option<Value> = if let Some(custom_models) = config.custom_models.as_ref() {
-            Some(custom_models.iter().map(|(l, e)| json!({
+        let custom_models: Option<Value> = config.custom_models
+            .as_ref()
+            .map(|custom_models| custom_models.iter().map(|(l, e)| json!({
                 "language": l,
                 "endpoint": e,
-            })).collect())
-        } else { None };
+            })).collect());
 
         context["phraseDetection"] = json!({
             

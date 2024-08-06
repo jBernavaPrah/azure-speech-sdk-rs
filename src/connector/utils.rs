@@ -74,7 +74,7 @@ fn explode_headers_message(headers: &str) -> Vec<(String, String)> {
     headers.split(CRLF)
         .map(|x| {
             let mut split = x.split(":");
-            (split.nth(0).unwrap_or("").to_string(), split.nth(0).unwrap_or("").to_string())
+            (split.next().unwrap_or("").to_string(), split.next().unwrap_or("").to_string())
         })
         .filter(|(k, _)| !k.is_empty())
         .collect()

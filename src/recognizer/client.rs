@@ -11,6 +11,7 @@ use crate::utils::get_azure_hostname_from_region;
 
 static BUFFER_SIZE: usize = 4096;
 
+/// Recognizer Client.
 #[derive(Clone)]
 pub struct Client
 {
@@ -63,7 +64,6 @@ impl Client {
 
 impl Client {
     /// Recognize audio from a stream.
-    ///
     pub async fn recognize<A>(&self, stream: A, content_type: ContentType, details: Details) -> crate::Result<impl Stream<Item=crate::Result<Event>>>
     where
         A: Stream<Item=Vec<u8>> + Send + 'static,
@@ -88,7 +88,6 @@ impl Client {
         tokio::spawn(async move {
 
             // todo: add throttle to the audio stream.
-            // todo: Stream of Types like Header and Data. Then in the spawn we send it accordingly.
             // src/common.speech/ServiceRecognizerBase.ts:857
 
             let mut buffer = Vec::with_capacity(BUFFER_SIZE);
@@ -105,7 +104,8 @@ impl Client {
             }
 
             while !buffer.is_empty() {
-                let _ = client.send_binary(create_audio_message(session1.request_id().to_string(), None, Some(buffer.drain(..std::cmp::min(buffer.len(), BUFFER_SIZE)).collect())));
+                let data = buffer.drain(..BUFFER_SIZE).collect();
+                let _ = client.send_binary(create_audio_message(session1.request_id().to_string(), None, Some(data)));
             }
             // notify that we have finished sending the audio.
             let _ = client.send_binary(create_audio_message(session1.request_id().to_string(), None, None));
@@ -138,10 +138,7 @@ impl Client {
                 event
             })
             // Stop the stream if there is an error or the session ended.
-            .stop_after(move |event| event.is_err() || match event {
-                Ok(Event::SessionEnded(_)) => true,
-                _ => false
-            }))
+            .stop_after(move |event| event.is_err() || matches!(event, Ok(Event::SessionEnded(_)))))
     }
 }
 
@@ -158,7 +155,7 @@ fn convert_message_to_event(message: Message, session: Session) -> Option<crate:
             Some(Ok(Event::StartDetected(session.request_id(), value.offset)))
         }
         ("speech.enddetected", Data::Text(Some(data)), _) => {
-            let value = serde_json::from_str::<message::SpeechEndDetected>(&data).unwrap_or(Default::default());
+            let value = serde_json::from_str::<message::SpeechEndDetected>(&data).unwrap_or_default();
             Some(Ok(Event::EndDetected(session.request_id(), value.offset)))
         }
 

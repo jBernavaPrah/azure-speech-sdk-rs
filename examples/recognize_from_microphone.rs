@@ -31,11 +31,8 @@ async fn main() -> azure_speech::Result<()> {
     tracing::info!("Starting to listen...");
 
     while let Some(event) = events.next().await {
-        match event {
-            Ok(recognizer::Event::Recognized(_, _, _, result, _)) => {
-                tracing::info!("recognized: {:?}", result.text);
-            }
-            _ => {}
+        if let Ok(recognizer::Event::Recognized(_, result, _,_, _)) = event {
+            tracing::info!("recognized: {:?}", result.text);
         }
     }
 

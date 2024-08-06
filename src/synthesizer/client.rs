@@ -88,31 +88,31 @@ impl Client {
                 match &event {
                     Ok(Event::SessionEnded(request_id)) => {
                         tracing::debug!("Session ended");
-                        config.on_session_ended.as_ref().map(|f| f(request_id.clone()));
+                        if let Some(f) = config.on_session_ended.as_ref() { f(*request_id) }
                     }
                     Ok(Event::SessionStarted(request_id)) => {
                         tracing::debug!("Session started");
-                        config.on_session_started.as_ref().map(|f| f(request_id.clone()));
+                        if let Some(f) = config.on_session_started.as_ref() { f(*request_id) }
                     }
 
                     Ok(Event::Synthesising(request_id, audio)) => {
                         tracing::debug!("Synthesising audio: {:?}", audio.len());
-                        config.on_synthesising.as_ref().map(|f| f(request_id.clone(), audio.clone()));
+                        if let Some(f) = config.on_synthesising.as_ref() { f(*request_id, audio.clone()) }
                     }
 
                     Ok(Event::Synthesised(request_id)) => {
                         tracing::debug!("Synthesised");
-                        config.on_synthesised.as_ref().map(|f| f(request_id.clone()));
+                        if let Some(f) = config.on_synthesised.as_ref() { f(*request_id) }
                     }
 
                     Ok(Event::AudioMetadata(request_id, metadata)) => {
                         tracing::debug!("Audio metadata: {:?}", metadata);
-                        config.on_audio_metadata.as_ref().map(|f| f(request_id.clone(), metadata.clone()));
+                        if let Some(f) = config.on_audio_metadata.as_ref() { f(*request_id, metadata.clone()) }
                     }
 
                     Err(e) => {
                         tracing::error!("Error: {:?}", e);
-                        config.on_error.as_ref().map(|f| f(session3.request_id(), e.clone()));
+                        if let Some(f) = config.on_error.as_ref() { f(session3.request_id(), e.clone()) }
                     }
                 }
 

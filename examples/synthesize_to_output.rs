@@ -55,8 +55,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
 
         tracing::info!("Synthesized: {:?}", line);
-
-        //sink.append(rodio::Decoder::new(StreamMediaSource::new(stream)).unwrap());
     }
     
     drop(sender);
@@ -106,7 +104,7 @@ impl StreamMediaSource
     }
 
     fn read_inner(&mut self, len: usize) -> Vec<u8> {
-        tracing::info!("Messages left: {}", self.inner.len());
+        tracing::debug!("Messages left: {}", self.inner.len());
 
         while self.buffer.len() < len {
             match self.inner.blocking_recv() {

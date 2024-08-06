@@ -15,25 +15,22 @@ async fn main() {
     );
 
     let client = recognizer::Client::connect(auth, recognizer::Config::default()
-        .set_detect_languages(vec![recognizer::Language::ItIt, recognizer::Language::EnGb], recognizer::LanguageDetectMode::Continuous),
+        .set_detect_languages(vec![recognizer::Language::EnGb], recognizer::LanguageDetectMode::Continuous)
+                                             ,
     ).await.expect("Failed to connect to Azure");
 
 
-    let radio_stream = create_stream_audio("https://stream.live.vc.bbcmedia.co.uk/bbc_world_service").await;
-
+    let radio_stream = create_audio_stream("https://stream.live.vc.bbcmedia.co.uk/bbc_world_service").await;
     let mut events = client.recognize(radio_stream, recognizer::ContentType::Mpeg, recognizer::Details::stream("mac", "stream")).await.expect("Failed to recognize");
 
     while let Some(event) = events.next().await {
-        match event {
-            Ok(recognizer::Event::Recognized(_, result, ..)) => {
-                tracing::info!("Recognized: {:?}", result.text);
-            }
-            _ => {}
+        if let Ok(recognizer::Event::Recognized(_, result, ..)) = event {
+            tracing::info!("Recognized: {:?}", result.text);
         }
     }
 }
 
-async fn create_stream_audio(endpoint: impl Into<String>) -> impl Stream<Item=Vec<u8>> {
+async fn create_audio_stream(endpoint: impl Into<String>) -> impl Stream<Item=Vec<u8>> {
     let response = reqwest::get(endpoint.into()).await.unwrap();
     tracing::info!("Response: {:?}", response);
 
