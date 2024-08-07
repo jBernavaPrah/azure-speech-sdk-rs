@@ -228,7 +228,9 @@ pub enum LanguageDetectMode {
 }
 
 #[derive(Debug, Clone)]
-/// Details of the source. This is used to provide information about the source.
+/// Details of the source.
+///
+/// This is used to provide information about the source.
 pub struct Details {
     /// Name of the source, e.g. "Microphone", "Stream", "File"
     pub name: String,

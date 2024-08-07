@@ -1,5 +1,6 @@
-use crate::synthesizer::ssml::{Language, Voice};
+use crate::synthesizer::{Language, Voice};
 
+// Easy to use struct to create SSML speak elements.
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct Speak {
     pub(crate) text: String,

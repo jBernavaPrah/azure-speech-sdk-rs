@@ -39,13 +39,17 @@ mod audio_format;
 mod client;
 mod config;
 mod event;
+mod language;
 mod message;
 mod session;
-mod ssml;
 mod utils;
+mod voice;
+
+pub mod ssml;
 
 pub use audio_format::*;
 pub use client::*;
 pub use config::*;
 pub use event::*;
-pub use ssml::*;
+pub use language::*;
+pub use voice::*;

@@ -1,7 +1,5 @@
 use crate::config::Device;
-use crate::synthesizer::ssml::Voice;
-use crate::synthesizer::AudioFormat;
-use crate::synthesizer::Language;
+use crate::synthesizer::{AudioFormat, Language, Voice};
 use crate::RequestId;
 use std::sync::Arc;
 

@@ -1,92 +1,72 @@
 use azure_speech::{synthesizer, Auth};
 use std::env;
 use std::error::Error;
-use std::io::{stdin, SeekFrom};
+use std::io::SeekFrom;
 use tokio::sync::mpsc::Receiver;
-use tokio_stream::wrappers::ReceiverStream;
-use tokio_stream::{Stream, StreamExt};
+use tokio_stream::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
+        .with_max_level(tracing::Level::INFO)
         .init();
 
-    let client = synthesizer::Client::connect(
-        // Add your Azure region and subscription key to the environment variables
-        Auth::from_subscription(
-            env::var("AZURE_REGION").expect("Region set on AZURE_REGION env"),
-            env::var("AZURE_SUBSCRIPTION_KEY")
-                .expect("Subscription set on AZURE_SUBSCRIPTION_KEY env"),
-        ),
-        // Set the configuration for the synthesizer
-        synthesizer::Config::default()
-            .with_output_format(synthesizer::AudioFormat::Audio16Khz128KBitRateMonoMp3)
-            .with_language(synthesizer::Language::ItIt)
-            .on_session_start(|session| {
-                tracing::info!("Callback: Session started {:?}", session);
-            })
-            .on_session_end(|session| {
-                tracing::info!("Callback: Session ended {:?}", session);
-            }),
-    )
-    .await
-    .expect("to connect to azure");
+    // Add your Azure region and subscription key to the environment variables
+    let auth = Auth::from_subscription(
+        env::var("AZURE_REGION").expect("Region set on AZURE_REGION env"),
+        env::var("AZURE_SUBSCRIPTION_KEY").expect("Subscription set on AZURE_SUBSCRIPTION_KEY env"),
+    );
 
-    let sender = sender_for_default_audio_output();
+    // Set the configuration for the synthesizer
+    // The default configuration will create a Riff16Khz16BitMonoPcm audio chunks.
+    // It will understand the en-GB language and will use the EnGbLibbyNeural voice.
+    // You can change it by using the Config struct and its methods.
+    let config = synthesizer::Config::default();
 
-    while let Some(line) = recv_from_stdin().next().await {
-        if line == "exit" {
-            tracing::info!("exiting...");
-            break;
-        }
+    let client = synthesizer::Client::connect(auth, config)
+        .await
+        .expect("to connect to azure");
 
-        let mut stream = client
-            .synthesize(line.clone())
-            .await
-            .expect("to synthesize");
+    let mut stream = client
+        .synthesize("Hello World!")
+        .await
+        .expect("to synthesize");
 
-        while let Some(event) = stream.next().await {
-            match event {
-                Ok(synthesizer::Event::Synthesising(.., audio)) => {
-                    sender.send(Some(audio)).await.expect("send audio chunk");
-                }
-                Ok(synthesizer::Event::SessionEnded(..)) => {
-                    sender.send(None).await.expect("send audio chunk");
-                    break;
-                }
-                _ => {}
+    let (sender, handler) = sender_for_default_audio_output();
+    while let Some(event) = stream.next().await {
+        match event {
+            Ok(synthesizer::Event::Synthesising(.., audio)) => {
+                sender.send(Some(audio)).await.expect("send audio chunk");
             }
+            Ok(synthesizer::Event::SessionEnded(..)) => {
+                sender.send(None).await.expect("send audio chunk");
+                break;
+            }
+            _ => {}
         }
-
-        tracing::info!("Synthesized: {:?}", line);
     }
 
+    tracing::info!("Synthesized.");
+
     drop(sender);
+
+    let _ = handler.join();
 
     Ok(())
 }
 
-pub fn recv_from_stdin() -> impl Stream<Item = String> {
-    let (tx, rx) = tokio::sync::mpsc::channel::<String>(10);
-    std::thread::spawn(move || {
-        let mut buffer = String::new();
-        stdin().read_line(&mut buffer).unwrap();
-        tx.blocking_send(buffer.trim().to_string()).unwrap();
-    });
-
-    ReceiverStream::new(rx)
-}
-
-pub fn sender_for_default_audio_output() -> tokio::sync::mpsc::Sender<Option<Vec<u8>>> {
+pub fn sender_for_default_audio_output() -> (
+    tokio::sync::mpsc::Sender<Option<Vec<u8>>>,
+    std::thread::JoinHandle<()>,
+) {
     let (tx, rx) = tokio::sync::mpsc::channel::<Option<Vec<u8>>>(10);
-    std::thread::spawn(move || {
+    let handler = std::thread::spawn(move || {
         let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
         let sink = rodio::Sink::try_new(&handle).unwrap();
         sink.append(rodio::Decoder::new(StreamMediaSource::new(rx)).unwrap());
         sink.sleep_until_end();
     });
-    tx
+    (tx, handler)
 }
 
 pub(crate) struct StreamMediaSource {
