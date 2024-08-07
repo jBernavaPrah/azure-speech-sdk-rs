@@ -23,11 +23,9 @@ async fn main() {
     .await
     .expect("Failed to connect to Azure");
 
-    let radio_stream =
-        create_audio_stream("https://stream.live.vc.bbcmedia.co.uk/bbc_world_service").await;
     let mut events = client
         .recognize(
-            radio_stream,
+            create_audio_stream("https://stream.live.vc.bbcmedia.co.uk/bbc_world_service").await,
             recognizer::ContentType::Mpeg,
             recognizer::Details::stream("mac", "stream"),
         )
@@ -35,6 +33,13 @@ async fn main() {
         .expect("Failed to recognize");
 
     while let Some(event) = events.next().await {
+        // You will need to wait for some time before the first recognition is successful.
+        // The best motivation is because they are talking to fast and
+        // the recognition is waiting for a silence pause to wrap-up the sentence.
+
+        // Currently is not possible to configure better the silence times and other parameters.
+        // but will be implemented in the future.
+
         if let Ok(recognizer::Event::Recognized(_, result, ..)) = event {
             tracing::info!("Recognized: {:?}", result.text);
         }

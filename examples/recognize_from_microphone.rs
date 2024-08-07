@@ -3,42 +3,46 @@ use azure_speech::Auth;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::SampleFormat as CPALSampleFormat;
 use std::env;
+use std::error::Error;
 use tokio_stream::wrappers::ReceiverStream;
-use tokio_stream::StreamExt;
+use tokio_stream::{Stream, StreamExt};
 
 #[tokio::main]
-async fn main() -> azure_speech::Result<()> {
+async fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();
+
+    // More information on the configuration can be found in the simple example.
 
     let auth = Auth::from_subscription(
         env::var("AZURE_REGION").expect("Region set on AZURE_REGION env"),
         env::var("AZURE_SUBSCRIPTION_KEY").expect("Subscription set on AZURE_SUBSCRIPTION_KEY env"),
     );
 
-    let (rx, stream) = listen_from_default_input().await;
+    let config = recognizer::Config::default();
 
-    let client = recognizer::Client::connect(
-        auth,
-        recognizer::Config::default().set_detect_languages(
-            vec![recognizer::Language::ItIt],
-            recognizer::LanguageDetectMode::Continuous,
-        ),
-    )
-    .await?;
+    let client = recognizer::Client::connect(auth, config)
+        .await
+        .expect("to connect to azure");
+
+    // Using this utility, I'm creating an audio stream from the default input device.
+    // The audio headers are sent first, then the audio data.
+    // As the audio is raw, the WAV format is used.
+    let (stream, microphone) = listen_from_default_input().await;
+
+    microphone.play().expect("play failed");
 
     let mut events = client
         .recognize(
-            ReceiverStream::new(rx),
+            stream,
             recognizer::ContentType::Wav,
             recognizer::Details::stream("mac", "stream"),
         )
-        .await?;
+        .await
+        .expect("to recognize");
 
-    stream.play().expect("play failed");
-
-    tracing::info!("Starting to listen...");
+    tracing::info!("... Starting to listen from microphone ...");
 
     while let Some(event) = events.next().await {
         if let Ok(recognizer::Event::Recognized(_, result, _, _, _)) = event {
@@ -51,7 +55,9 @@ async fn main() -> azure_speech::Result<()> {
     Ok(())
 }
 
-async fn listen_from_default_input() -> (tokio::sync::mpsc::Receiver<Vec<u8>>, cpal::Stream) {
+// This utility function creates a stream from the default input device.
+// The audio headers are sent first, then the audio data.
+async fn listen_from_default_input() -> (impl Stream<Item = Vec<u8>>, cpal::Stream) {
     let host = cpal::default_host();
     let device = host
         .default_input_device()
@@ -176,5 +182,5 @@ async fn listen_from_default_input() -> (tokio::sync::mpsc::Receiver<Vec<u8>>, c
     }
     .expect("Failed to build input stream");
 
-    (rx, stream)
+    (ReceiverStream::new(rx), stream)
 }

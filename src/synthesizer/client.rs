@@ -7,7 +7,7 @@ use crate::synthesizer::session::Session;
 use crate::synthesizer::utils::{
     create_speech_config_message, create_ssml_message, create_synthesis_context_message,
 };
-use crate::synthesizer::{message, Config, ToSSML};
+use crate::synthesizer::{message, ssml::ToSSML, Config};
 use crate::utils::get_azure_hostname_from_region;
 use tokio_stream::{Stream, StreamExt as _};
 use url::Url;

@@ -29,7 +29,6 @@ pub enum Voice {
     ElGrAthinaNeural,
     EnAuNatashaNeural,
     EnCaClaraNeural,
-    #[default]
     EnGbLibbyNeural,
     EnHkSamNeural,
     EnIeConnorNeural,
@@ -40,6 +39,7 @@ pub enum Voice {
     EnPhJamesNeural,
     EnSgLunaNeural,
     EnTzElimuNeural,
+    #[default]
     EnUsJennyNeural,
     EnZaLeahNeural,
     EsArElenaNeural,
