@@ -9,6 +9,7 @@ pub struct Speak {
 }
 
 impl Speak {
+    #[allow(dead_code)]
     pub fn new(text: String) -> Self {
         Self {
             text,
