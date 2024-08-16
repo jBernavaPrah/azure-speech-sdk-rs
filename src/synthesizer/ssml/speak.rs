@@ -16,10 +16,14 @@ impl Speak {
             language: None,
         }
     }
+    
+    #[allow(dead_code)]
     pub fn with_voice(mut self, voice: Voice) -> Self {
         self.voice = Some(voice);
         self
     }
+    
+    #[allow(dead_code)]
     pub fn with_language(mut self, language: Language) -> Self {
         self.language = Some(language);
         self
