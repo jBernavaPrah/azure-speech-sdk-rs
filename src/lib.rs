@@ -33,13 +33,14 @@ mod utils;
 
 pub mod recognizer;
 pub mod synthesizer;
+mod callback;
 
 pub use auth::*;
 pub use connector::*;
 pub use error::*;
 
 pub use event::*;
-pub use stream_ext::StreamExt;
+pub use stream_ext::*;
 
 pub mod stream {
     //! Re-export of `tokio_stream` crate.
