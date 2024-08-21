@@ -33,6 +33,7 @@ The library currently supports the following features:
 - [ ] Intent Recognition (Work in Progress)
 - [ ] Keyword Recognition (Work in Progress)
 
+
 The library is currently in the early stages of development, and I am actively working on adding more features and improving the existing ones.
 
 ## Why This Library?
