@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await
         .expect("to connect to azure");
 
-    // Here we are streaming the events from the synthesizer. 
+    // Here we are streaming the events from the synthesizer.
     // But you can also use the callbacks (see: examples/recognize_callbacks.rs) if you prefer.
     let mut stream = client
         .recognize(

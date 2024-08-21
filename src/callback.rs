@@ -9,8 +9,7 @@ pub(crate) type OnError = Box<dyn Fn(RequestId, crate::Error) -> BoxFuture>;
 pub(crate) type BoxFuture = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 
 #[async_trait::async_trait]
-pub trait Callback
-{
+pub trait Callback {
     type Item;
     fn on_event(&self, item: Self::Item) -> impl Future<Output = ()>;
 }

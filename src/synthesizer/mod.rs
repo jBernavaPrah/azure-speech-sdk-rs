@@ -45,13 +45,13 @@ mod session;
 mod utils;
 mod voice;
 
-pub mod ssml;
 mod callback;
+pub mod ssml;
 
 pub use audio_format::*;
+pub use callback::*;
 pub use client::*;
 pub use config::*;
 pub use event::*;
 pub use language::*;
 pub use voice::*;
-pub use callback::*;

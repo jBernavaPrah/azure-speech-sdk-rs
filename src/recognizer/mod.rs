@@ -40,6 +40,7 @@
 //! }
 //!
 
+mod callback;
 mod client;
 mod config;
 mod content_type;
@@ -48,11 +49,10 @@ mod language;
 mod message;
 mod session;
 mod utils;
-mod callback;
 
+pub use callback::*;
 pub use client::*;
 pub use config::*;
 pub use content_type::*;
 pub use event::*;
 pub use language::*;
-pub use callback::*;

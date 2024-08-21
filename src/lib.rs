@@ -31,9 +31,9 @@ mod event;
 mod stream_ext;
 mod utils;
 
+mod callback;
 pub mod recognizer;
 pub mod synthesizer;
-mod callback;
 
 pub use auth::*;
 pub use connector::*;

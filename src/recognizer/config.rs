@@ -1,5 +1,5 @@
-use crate::config::{Device};
-use crate::recognizer::{Language, };
+use crate::config::Device;
+use crate::recognizer::Language;
 use serde::{Deserialize, Serialize};
 
 /// The configuration for the recognizer.
@@ -26,7 +26,6 @@ pub struct Config {
     pub(crate) store_audio: bool, // todo: is this needed?
 
     pub(crate) profanity: Profanity,
-
     // todo: check diarization https://learn.microsoft.com/en-us/azure/ai-services/speech-service/get-started-stt-diarization?tabs=macos&pivots=programming-language-javascript
     // probably will be moved from here and added to a separate module.
     //pub(crate) recognize_speaker: bool,
@@ -47,13 +46,11 @@ impl Default for Config {
             store_audio: false,
             device: Device::default(),
             profanity: Profanity::Masked,
-            
         }
     }
 }
 
 impl Config {
-    
     /// Enable audio logging in service.
     ///
     /// Audio and content logs are stored either in Microsoft-owned storage, or in your own storage account linked
@@ -133,7 +130,6 @@ impl Config {
         self.output_format = format;
         self
     }
-
 
     //
     // pub fn enable_recognize_speaker(mut self) -> Self {

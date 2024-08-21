@@ -53,7 +53,7 @@ pub struct Recognized {
     pub text: String,
     /// The primary language of the recognized text.
     pub primary_language: Option<PrimaryLanguage>,
-    
+
     // todo: Remove from here and add to a diarization module.
     /// The speaker id of the recognized text.
     /// This will be None if the detection of the speaker is not activated.

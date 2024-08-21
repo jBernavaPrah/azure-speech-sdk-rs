@@ -118,10 +118,9 @@ impl Callback {
 }
 
 #[async_trait::async_trait]
-impl crate::callback::Callback for Callback
-{
+impl crate::callback::Callback for Callback {
     type Item = crate::Result<Event>;
-    
+
     fn on_event(&self, item: Self::Item) -> impl Future<Output = ()> {
         async move {
             match &item {
@@ -147,7 +146,7 @@ impl crate::callback::Callback for Callback
                             duration.clone(),
                             raw.clone(),
                         )
-                            .await
+                        .await
                     }
                 }
 
@@ -160,7 +159,7 @@ impl crate::callback::Callback for Callback
                             duration.clone(),
                             raw.clone(),
                         )
-                            .await
+                        .await
                     }
                 }
 

@@ -31,13 +31,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .on_start_detected(|id, offset| async move {
             tracing::info!("Start detected: {:?} - {:?}", id, offset);
         })
-        .on_recognized(|id, result, _offset, _duration, _raw | async move {
+        .on_recognized(|id, result, _offset, _duration, _raw| async move {
             tracing::info!("Recognized: {:?} - {:?}", id, result);
         })
         .on_session_end(|id| async move {
             tracing::info!("Session end: {:?}", id);
         });
-        //.on_... // check the other callbacks available.
+    //.on_... // check the other callbacks available.
 
     client
         .recognize(

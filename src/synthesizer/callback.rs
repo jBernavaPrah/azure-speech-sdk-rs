@@ -1,8 +1,8 @@
 use crate::callback::{BoxFuture, OnError, OnSessionEnded, OnSessionStarted};
+use crate::synthesizer::Event;
 use crate::RequestId;
 use std::future::Future;
 use std::sync::Arc;
-use crate::synthesizer::Event;
 
 pub(crate) type OnSynthesising = Arc<Box<dyn Fn(RequestId, Vec<u8>) -> BoxFuture>>;
 pub(crate) type OnAudioMetadata = Arc<Box<dyn Fn(RequestId, String) -> BoxFuture>>;
@@ -86,8 +86,7 @@ impl Callback {
     }
 }
 #[async_trait::async_trait]
-impl crate::callback::Callback for Callback
-{
+impl crate::callback::Callback for Callback {
     type Item = crate::Result<Event>;
 
     fn on_event(&self, item: Self::Item) -> impl Future<Output = ()> {
@@ -105,7 +104,6 @@ impl crate::callback::Callback for Callback
                         f(*request_id).await
                     }
                 }
-
 
                 Ok(Event::Synthesising(request_id, audio)) => {
                     tracing::debug!("Synthesising audio: {:?}", audio.len());

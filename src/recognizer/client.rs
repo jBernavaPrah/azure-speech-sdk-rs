@@ -91,7 +91,6 @@ impl Client {
 }
 
 impl Client {
-    
     /// Recognize audio from a stream.
     pub async fn recognize<A>(
         &self,
