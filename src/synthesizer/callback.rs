@@ -89,6 +89,7 @@ impl Callback {
 impl crate::callback::Callback for Callback {
     type Item = crate::Result<Event>;
 
+    #[allow(clippy::manual_async_fn)]
     fn on_event(&self, item: Self::Item) -> impl Future<Output = ()> {
         async move {
             match &item {

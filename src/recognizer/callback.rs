@@ -121,6 +121,7 @@ impl Callback {
 impl crate::callback::Callback for Callback {
     type Item = crate::Result<Event>;
 
+    #[allow(clippy::manual_async_fn)]
     fn on_event(&self, item: Self::Item) -> impl Future<Output = ()> {
         async move {
             match &item {
@@ -142,8 +143,8 @@ impl crate::callback::Callback for Callback {
                         f(
                             *request_id,
                             recognized.clone(),
-                            offset.clone(),
-                            duration.clone(),
+                            *offset,
+                            *duration,
                             raw.clone(),
                         )
                         .await
@@ -155,8 +156,8 @@ impl crate::callback::Callback for Callback {
                         f(
                             *request_id,
                             recognized.clone(),
-                            offset.clone(),
-                            duration.clone(),
+                            *offset,
+                            *duration,
                             raw.clone(),
                         )
                         .await
@@ -171,13 +172,13 @@ impl crate::callback::Callback for Callback {
 
                 Ok(Event::EndDetected(request_id, offset)) => {
                     if let Some(f) = self.on_end_detected.as_ref() {
-                        f(*request_id, offset.clone()).await
+                        f(*request_id, *offset).await
                     }
                 }
 
                 Ok(Event::StartDetected(request_id, offset)) => {
                     if let Some(f) = self.on_start_detected.as_ref() {
-                        f(*request_id, offset.clone()).await
+                        f(*request_id, *offset).await
                     }
                 }
 
