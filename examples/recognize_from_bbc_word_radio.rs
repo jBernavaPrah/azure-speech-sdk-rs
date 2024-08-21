@@ -15,19 +15,20 @@ async fn main() {
 
     let client = recognizer::Client::connect(
         auth,
-        recognizer::Config::default().set_detect_languages(
-            vec![recognizer::Language::EnGb],
-            recognizer::LanguageDetectMode::Continuous,
-        ),
+        recognizer::Config::default()
+            // The BBC World Service stream is in English.
+            .set_language(recognizer::Language::EnGb),
     )
     .await
     .expect("Failed to connect to Azure");
 
     let mut events = client
         .recognize(
+            // The BBC World Service stream is a good example to test the recognizer.
             create_audio_stream("https://stream.live.vc.bbcmedia.co.uk/bbc_world_service").await,
+            // The content type is MPEG.
             recognizer::ContentType::Mpeg,
-            recognizer::Details::stream("mac", "stream"),
+            recognizer::Details::stream("unknown", "stream"),
         )
         .await
         .expect("Failed to recognize");

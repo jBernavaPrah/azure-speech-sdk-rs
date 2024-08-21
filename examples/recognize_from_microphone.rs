@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    // More information on the configuration can be found in the simple example.
+    // More information on the configuration can be found in the examples/recognize_simple.rs example.
 
     let auth = Auth::from_subscription(
         env::var("AZURE_REGION").expect("Region set on AZURE_REGION env"),
@@ -31,6 +31,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // As the audio is raw, the WAV format is used.
     let (stream, microphone) = listen_from_default_input().await;
 
+    // Start the microphone.
     microphone.play().expect("play failed");
 
     let mut events = client

@@ -8,11 +8,11 @@
 //! `tokio` runtime, it minimizes external dependencies wherever possible.
 //!
 //! ## Core Functionalities
-//! - [X] Speech to Text
-//! - [X] Text to Speech
+//! - [X] Speech to Text [recognizer]
+//! - [X] Text to Speech [synthesizer]
 //!
 //! For comprehensive information on Microsoft Speech Service, refer to the official
-//! documentation [here](https://docs.microsoft.com/en-us/azure/cognitive-services/speech-service/speech-sdk?tabs=windows%2Cubuntu%2Cios-xcode%2Cmac-xcode%2Candroid-studio).
+//! documentation [here](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/speech-sdk).
 //!
 //! ## Notes
 //! This crate, in its current version, does not include some features available in the
@@ -20,7 +20,7 @@
 //! However, examples demonstrating these capabilities can be found in the `examples` directory.
 //!
 //! ## Usage and Examples
-//! Detailed usage instructions and examples are provided in the `examples` directory.
+//! Detailed usage instructions and examples are provided in the [examples](https://github.com/jBernavaPrah/azure-speech-sdk-rs/blob/master/examples) folder in the GitHub repository.
 //!
 
 mod auth;
@@ -31,6 +31,7 @@ mod event;
 mod stream_ext;
 mod utils;
 
+mod callback;
 pub mod recognizer;
 pub mod synthesizer;
 
@@ -39,7 +40,7 @@ pub use connector::*;
 pub use error::*;
 
 pub use event::*;
-pub use stream_ext::StreamExt;
+pub use stream_ext::*;
 
 pub mod stream {
     //! Re-export of `tokio_stream` crate.

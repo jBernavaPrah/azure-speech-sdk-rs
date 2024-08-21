@@ -45,9 +45,11 @@ mod session;
 mod utils;
 mod voice;
 
+mod callback;
 pub mod ssml;
 
 pub use audio_format::*;
+pub use callback::*;
 pub use client::*;
 pub use config::*;
 pub use event::*;
