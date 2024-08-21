@@ -186,11 +186,6 @@ impl Client {
             .merge(tokio_stream::iter(vec![Ok(Event::SessionStarted(
                 session3.request_id(),
             ))]))
-            // Handle the events and call the callbacks.
-            .map(move |event| {
-                // todo: implement the callbacks for events
-                event
-            })
             // Stop the stream if there is an error or the session ended.
             .stop_after(move |event| event.is_err() || matches!(event, Ok(Event::SessionEnded(_)))))
     }

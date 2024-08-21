@@ -82,7 +82,6 @@ impl Client {
             .send_text(create_ssml_message(request_id.to_string(), xml))?;
 
         let session2 = session.clone();
-        let session3 = session.clone();
         Ok(stream
             // Map errors.
             .map(move |message| match message {
@@ -98,53 +97,6 @@ impl Client {
             .filter_map(move |message| match message {
                 Ok(message) => convert_message_to_event(message, session2.clone()),
                 Err(e) => Some(Err(e)),
-            })
-            // Handle the events and call the callbacks.
-            .map(move |event| {
-                match &event {
-                    Ok(Event::SessionEnded(request_id)) => {
-                        tracing::debug!("Session ended");
-                        if let Some(f) = config.on_session_ended.as_ref() {
-                            f(*request_id)
-                        }
-                    }
-                    Ok(Event::SessionStarted(request_id)) => {
-                        tracing::debug!("Session started");
-                        if let Some(f) = config.on_session_started.as_ref() {
-                            f(*request_id)
-                        }
-                    }
-
-                    Ok(Event::Synthesising(request_id, audio)) => {
-                        tracing::debug!("Synthesising audio: {:?}", audio.len());
-                        if let Some(f) = config.on_synthesising.as_ref() {
-                            f(*request_id, audio.clone())
-                        }
-                    }
-
-                    Ok(Event::Synthesised(request_id)) => {
-                        tracing::debug!("Synthesised");
-                        if let Some(f) = config.on_synthesised.as_ref() {
-                            f(*request_id)
-                        }
-                    }
-
-                    Ok(Event::AudioMetadata(request_id, metadata)) => {
-                        tracing::debug!("Audio metadata: {:?}", metadata);
-                        if let Some(f) = config.on_audio_metadata.as_ref() {
-                            f(*request_id, metadata.clone())
-                        }
-                    }
-
-                    Err(e) => {
-                        tracing::error!("Error: {:?}", e);
-                        if let Some(f) = config.on_error.as_ref() {
-                            f(session3.request_id(), e.clone())
-                        }
-                    }
-                }
-
-                event
             })
             // Stop the stream if there is an error or the session ended.
             .stop_after(|event| event.is_err() || matches!(event, Ok(Event::SessionEnded(_)))))

@@ -25,6 +25,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // It will understand the en-US language and will use the EnUsJennyNeural voice.
     // You can change it by using the Config struct and its methods.
     let config = synthesizer::Config::default();
+    //.with_language(synthesizer::Language::EnGb)
+    //.with_voice(synthesizer::Voice::EnGbLibbyNeural)
 
     let client = synthesizer::Client::connect(auth, config)
         .await
@@ -36,6 +38,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await
         .expect("to synthesize");
 
+    // Here we are streaming the events from the synthesizer.
+    // But you can also use the callbacks (see: examples/synthesize_callbacks.rs) if you prefer.
     while let Some(event) = stream.next().await {
         // Each event is a part of the synthesis process.
         match event {

@@ -1,8 +1,11 @@
+use crate::callback::Callback;
 use core::fmt;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 use pin_project_lite::pin_project;
-use tokio_stream::Stream;
+use std::future::Future;
+use std::pin::pin;
+use tokio_stream::{Stream, StreamExt as _};
 
 pin_project! {
 /// Stream for the [`stop_after`](stop_after) method.
@@ -72,7 +75,10 @@ where
 }
 
 /// An extension trait for `Stream` that provides a variety of convenient combinator functions.
-pub trait StreamExt: Stream {
+pub trait StreamExt: Stream
+where
+    Self: 'static,
+{
     /// Takes elements from this stream until the provided predicate resolves to `true`.
     ///
     /// This function operates similarly to `Iterator::take_while`, extracting elements from the
@@ -110,6 +116,23 @@ pub trait StreamExt: Stream {
     {
         StopAfter::new(self, f)
     }
+
+    /// Calls the provided callback for each item in the stream.
+    ///
+    ///
+
+    fn use_callbacks<C>(self, callback: C) -> impl Future<Output = ()>
+    where
+        Self: Sized + Send + Sync,
+        C: Callback<Item = Self::Item> + 'static,
+    {
+        async move {
+            let mut _self = pin!(self);
+            while let Some(event) = _self.next().await {
+                callback.on_event(event).await;
+            }
+        }
+    }
 }
 
-impl<St: ?Sized> StreamExt for St where St: Stream {}
+impl<St: ?Sized + 'static> StreamExt for St where St: Stream {}

@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // this will print a lot of events to the console.
         // you can use the events to create your own audio output.
 
-        // check other examples to see how to create an audio output.
+        // check examples/synthesize_to_standard_output.rs to see how to create an audio output.
         tracing::info!("Synthesized: {:?}", event);
     }
 

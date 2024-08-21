@@ -5,13 +5,14 @@ use serde::{Deserialize, Serialize};
 /// The configuration for the recognizer.
 ///
 /// The configuration is used to set the parameters of the speech recognition.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Config {
     pub(crate) device: Device,
 
     pub(crate) languages: Vec<Language>,
     pub(crate) output_format: OutputFormat,
 
+    // todo: probably this will be removed and moved directly in the connection.
     pub(crate) mode: RecognitionMode, // todo: what is this?
 
     pub(crate) language_detect_mode: Option<LanguageDetectMode>,
@@ -25,6 +26,8 @@ pub struct Config {
     pub(crate) store_audio: bool, // todo: is this needed?
 
     pub(crate) profanity: Profanity,
+    // todo: check diarization https://learn.microsoft.com/en-us/azure/ai-services/speech-service/get-started-stt-diarization?tabs=macos&pivots=programming-language-javascript
+    // probably will be moved from here and added to a separate module.
     //pub(crate) recognize_speaker: bool,
 
     // todo add more detailed configuration from default:  src/common.speech/ConnectionFactoryBase.ts
@@ -43,7 +46,6 @@ impl Default for Config {
             store_audio: false,
             device: Device::default(),
             profanity: Profanity::Masked,
-            //recognize_speaker: false,
         }
     }
 }
