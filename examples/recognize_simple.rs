@@ -33,6 +33,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await
         .expect("to connect to azure");
 
+    // Here we are streaming the events from the synthesizer. 
+    // But you can also use the callbacks (see: examples/recognize_callbacks.rs) if you prefer.
     let mut stream = client
         .recognize(
             // Here is your input audio stream. The audio headers needs to be present if required by the content type used.
@@ -65,8 +67,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 tracing::info!("Result: {:?}", result);
                 tracing::info!("Offset: {:?}", offset);
                 tracing::info!("Duration: {:?}", duration);
-                // the raw message is the raw json message from the service.
-                // You can use it to extract more information if needed.
+
+                // the raw message is the json message received from the service.
+                // You can use it to extract more information when needed.
                 tracing::info!("Raw message: {:?}", raw_message);
             }
             _ => {

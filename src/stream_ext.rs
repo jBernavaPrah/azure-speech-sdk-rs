@@ -3,7 +3,6 @@ use core::fmt;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 use pin_project_lite::pin_project;
-use tokio_stream::Stream;
 use std::future::Future;
 use std::pin::pin;
 use tokio_stream::{Stream, StreamExt as _};

@@ -24,7 +24,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //
     // It will understand the en-US language and will use the EnUsJennyNeural voice.
     // You can change it by using the Config struct and its methods.
-    let config = synthesizer::Config::default();
+    let config = synthesizer::Config::default()
+    //.with_language(synthesizer::Language::EnGb)
+    //.with_voice(synthesizer::Voice::EnGbLibbyNeural)
+    
+    ;
 
     let client = synthesizer::Client::connect(auth, config)
         .await

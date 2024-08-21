@@ -19,17 +19,19 @@ This library aims to provide an easy-to-install and straightforward interface fo
 
 The library currently supports the following features:
 
-- [X] Speech-to-Text (Speech Recognition)
+- [X] Speech Recognition (Speech-to-Text) [examples](examples/recognize_simple.rs)
   - [X] Real-time Speech Recognition
   - [X] Custom Speech Recognition
-- [X] Text-to-Speech (Speech Synthesis)
+  - [X] Phrase List
+  - [ ] Conversation Transcriber - Real-time Diarization (Work in Progress)
+  - [ ] Pronunciation Assessment (Work in Progress)
+- [X] Speech Synthesis (Text-to-Speech) [example](examples/synthesize_simple.rs)
   - [X] Real-time Speech Synthesis
   - [X] Custom Voice
   - [X] SSML Support
-- [ ] Speech Translation 
-- [ ] Intent Recognition
-- [ ] Speaker Recognition
-- [ ] Keyword Recognition
+- [ ] Speech Translation (Work in Progress)
+- [ ] Intent Recognition (Work in Progress)
+- [ ] Keyword Recognition (Work in Progress)
 
 The library is currently in the early stages of development, and I am actively working on adding more features and improving the existing ones.
 
@@ -47,6 +49,10 @@ Add this library to your project using the following command:
 ```bash
 cargo add azure_speech
 ```
+
+**And that's it!** 
+
+You are now ready to use the Azure Speech SDK in your Rust project.
 
 ## Usage
 For usage examples, please refer to the [examples folder](https://github.com/jBernavaPrah/azure-speech-sdk-rs/tree/master/examples) in the repository. Or check the [documentation](https://docs.rs/azure-speech).

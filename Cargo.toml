@@ -2,7 +2,7 @@
 name = "azure-speech"
 version = "0.2.2"
 authors = ["Jure Bernava Prah <webjure@gmail.com>"]
-description = "Pure Rust implementation for Microsoft Speech Service"
+description = "Pure Rust SDK for Azure Speech Service"
 edition = "2021"
 rust-version = "1.71.0"
 license = "MIT"
@@ -41,7 +41,7 @@ serde_json = "1.0.114"
 os_info = "3"
 
 ssml = "0.1.0"
-async-channel = "1.9.0"
+async-channel = "1.9.0" # needed for ezsockets 0.6 for call_with;
 
 
 [dev-dependencies]
