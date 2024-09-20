@@ -153,18 +153,22 @@ impl Client {
 
             while !buffer.is_empty() {
                 let data: Vec<u8> = buffer.drain(..BUFFER_SIZE).collect();
-                let _ = client.send_binary(create_audio_message(
-                    session1.request_id().to_string(),
-                    None,
-                    Some(&data),
-                ));
+                let _ = client
+                    .send_binary(create_audio_message(
+                        session1.request_id().to_string(),
+                        None,
+                        Some(&data),
+                    ))
+                    .await;
             }
             // notify that we have finished sending the audio.
-            let _ = client.send_binary(create_audio_message(
-                session1.request_id().to_string(),
-                None,
-                None,
-            ));
+            let _ = client
+                .send_binary(create_audio_message(
+                    session1.request_id().to_string(),
+                    None,
+                    None,
+                ))
+                .await;
             session1.set_audio_completed(true);
         });
 
