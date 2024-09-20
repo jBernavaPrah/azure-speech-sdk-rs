@@ -1,4 +1,3 @@
-use async_channel::SendError;
 use serde::Deserialize;
 use std::fmt::Debug;
 use std::result;
@@ -16,6 +15,7 @@ pub enum Error {
     InternalError(String),
     RuntimeError(String),
     ServerDisconnect(String),
+    ConnectionError(String),
     Forbidden,
     TooManyRequests,
     BadRequest,
@@ -39,6 +39,12 @@ impl From<serde_json::Error> for Error {
     }
 }
 
+impl<T> From<tokio::sync::mpsc::error::SendError<T>> for Error {
+    fn from(e: tokio::sync::mpsc::error::SendError<T>) -> Self {
+        Error::InternalError(e.to_string())
+    }
+}
+
 impl From<&str> for Error {
     fn from(s: &str) -> Self {
         Error::InternalError(s.to_string())
@@ -54,11 +60,5 @@ impl From<String> for Error {
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Self {
         Error::IOError(e.to_string())
-    }
-}
-
-impl<T: Debug> From<SendError<T>> for Error {
-    fn from(e: SendError<T>) -> Self {
-        Error::InternalError(e.to_string())
     }
 }

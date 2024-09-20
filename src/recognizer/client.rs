@@ -30,30 +30,19 @@ impl Client {
     pub async fn connect(auth: Auth, config: Config) -> crate::Result<Self> {
         let mut url = Url::parse(
             format!(
-                "wss://{}.stt.speech{}",
+                "wss://{}.stt.speech{}/speech/recognition/{}/cognitiveservices/v1",
                 auth.region,
-                get_azure_hostname_from_region(auth.region.as_str())
-            )
-            .as_str(),
-        )?;
-
-        url.set_path(
-            format!(
-                "/speech/recognition/{}/cognitiveservices/v1",
+                get_azure_hostname_from_region(auth.region.as_str()),
                 config.mode.as_str()
             )
             .as_str(),
-        );
+        )?;
 
         let lang = config
             .languages
             .first()
             .expect("Select at least one language!");
 
-        url.query_pairs_mut().append_pair(
-            "Ocp-Apim-Subscription-Key",
-            auth.subscription.to_string().as_str(),
-        );
         url.query_pairs_mut()
             .append_pair("language", lang.to_string().as_str());
         url.query_pairs_mut()
@@ -78,10 +67,16 @@ impl Client {
                 .append_pair("X-ConnectionId", connection_id.as_str());
         }
 
-        let client_config =
-            ezsockets::ClientConfig::new(url.as_str()).max_initial_connect_attempts(3);
-
-        let client = BaseClient::connect(client_config).await?;
+        let client = BaseClient::connect(
+            tokio_websockets::ClientBuilder::new()
+                .uri(url.as_str())
+                .unwrap()
+                .add_header(
+                    "Ocp-Apim-Subscription-Key".try_into().unwrap(),
+                    auth.subscription.to_string().as_str().try_into().unwrap(),
+                ),
+        )
+        .await?;
         Ok(Self::new(client, config))
     }
 
@@ -109,21 +104,26 @@ impl Client {
         let config = self.config.clone();
         let request_id = session.request_id().to_string();
 
-        self.client.send_text(create_speech_config_message(
-            request_id.clone(),
-            &config,
-            &details,
-        ))?;
         self.client
-            .send_text(create_speech_context_message(request_id.clone(), &config))?;
+            .send_text(create_speech_config_message(
+                request_id.clone(),
+                &config,
+                &details,
+            ))
+            .await?;
+        self.client
+            .send_text(create_speech_context_message(request_id.clone(), &config))
+            .await?;
 
         // Here I'm moving away from the original code.
         // I'm not interest anymore in the audio headers, but in the content type of the stream.
-        self.client.send_binary(create_audio_message(
-            request_id.clone(),
-            Some(content_type),
-            None,
-        ))?;
+        self.client
+            .send_binary(create_audio_message(
+                request_id.clone(),
+                Some(content_type),
+                None,
+            ))
+            .await?;
 
         let client = self.client.clone();
         let session1 = session.clone();
@@ -136,12 +136,15 @@ impl Client {
             while let Some(chunk) = audio.next().await {
                 buffer.extend(chunk);
                 while buffer.len() >= BUFFER_SIZE {
-                    let data = buffer.drain(..BUFFER_SIZE).collect();
-                    if let Err(e) = client.send_binary(create_audio_message(
-                        session1.request_id().to_string(),
-                        None,
-                        Some(data),
-                    )) {
+                    let data: Vec<u8> = buffer.drain(..BUFFER_SIZE).collect();
+                    if let Err(e) = client
+                        .send_binary(create_audio_message(
+                            session1.request_id().to_string(),
+                            None,
+                            Some(&data),
+                        ))
+                        .await
+                    {
                         tracing::error!("Error: {:?}", e);
                         return;
                     }
@@ -149,19 +152,23 @@ impl Client {
             }
 
             while !buffer.is_empty() {
-                let data = buffer.drain(..BUFFER_SIZE).collect();
-                let _ = client.send_binary(create_audio_message(
-                    session1.request_id().to_string(),
-                    None,
-                    Some(data),
-                ));
+                let data: Vec<u8> = buffer.drain(..BUFFER_SIZE).collect();
+                let _ = client
+                    .send_binary(create_audio_message(
+                        session1.request_id().to_string(),
+                        None,
+                        Some(&data),
+                    ))
+                    .await;
             }
             // notify that we have finished sending the audio.
-            let _ = client.send_binary(create_audio_message(
-                session1.request_id().to_string(),
-                None,
-                None,
-            ));
+            let _ = client
+                .send_binary(create_audio_message(
+                    session1.request_id().to_string(),
+                    None,
+                    None,
+                ))
+                .await;
             session1.set_audio_completed(true);
         });
 
