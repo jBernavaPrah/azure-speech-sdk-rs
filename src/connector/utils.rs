@@ -13,7 +13,7 @@ pub fn make_text_payload(headers: Headers, data: Option<&str>) -> String {
 pub fn make_binary_payload(headers: Headers, data: Option<&[u8]>) -> Vec<u8> {
     let headers = transform_headers_to_string(headers);
 
-    let data_length = if let Some(ref d) = data { d.len() } else { 0 };
+    let data_length = if let Some(d) = data { d.len() } else { 0 };
 
     let header_buffer: Vec<_> = headers.bytes().collect();
     let header_length = header_buffer.len();
@@ -22,7 +22,7 @@ pub fn make_binary_payload(headers: Headers, data: Option<&[u8]>) -> Vec<u8> {
     payload[1] = (header_length & 0xff) as u8;
     payload[2..2 + header_length].copy_from_slice(&header_buffer);
 
-    if let Some(ref d) = data {
+    if let Some(d) = data {
         payload[2 + header_length..].copy_from_slice(d);
     }
 

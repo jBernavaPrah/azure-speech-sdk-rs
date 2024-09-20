@@ -146,7 +146,7 @@ impl Client {
 
     /// Disconnect the client.
     pub(crate) async fn disconnect(self) -> crate::Result<()> {
-        let _ = self.channel.send(InternalMessage::Disconnect).await?;
+        self.channel.send(InternalMessage::Disconnect).await?;
         Ok(())
     }
 }
