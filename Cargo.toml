@@ -27,7 +27,7 @@ keywords = [
 ]
 
 [dependencies]
-tokio = { version = "1.40", features = ["sync"] }
+tokio = { version = "1.40", features = ["sync", "macros", "rt"] }
 tracing = { version = "0.1", default-features = false }
 tokio-websockets = { version = "0.10", features = ["client"] }
 futures-util = { version = "0.3", default-features = false, features = [ "std", "sink" ] }
