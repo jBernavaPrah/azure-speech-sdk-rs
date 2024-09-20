@@ -10,7 +10,6 @@ use crate::synthesizer::utils::{
 use crate::synthesizer::{message, ssml::ToSSML, Config};
 use crate::utils::get_azure_hostname_from_region;
 use tokio_stream::{Stream, StreamExt as _};
-use url::Url;
 
 #[derive(Clone)]
 pub struct Client {
@@ -30,15 +29,21 @@ impl Client {
             auth.region,
             get_azure_hostname_from_region(auth.region.as_str())
         );
-        let mut url = Url::parse(&url_str).unwrap();
-        url.query_pairs_mut()
-            .append_pair("Ocp-Apim-Subscription-Key", &auth.subscription)
-            .append_pair("X-ConnectionId", &uuid::Uuid::new_v4().to_string());
 
-        let client_config =
-            ezsockets::ClientConfig::new(url.as_str()).max_initial_connect_attempts(3);
-
-        let client = BaseClient::connect(client_config).await?;
+        let client = BaseClient::connect(
+            tokio_websockets::ClientBuilder::new()
+                .uri(&url_str)
+                .unwrap()
+                .add_header(
+                    "Ocp-Apim-Subscription-Key".try_into().unwrap(),
+                    (&auth.subscription).try_into().unwrap(),
+                )
+                .add_header(
+                    "X-ConnectionId".try_into().unwrap(),
+                    uuid::Uuid::new_v4().to_string().try_into().unwrap(),
+                ),
+        )
+        .await?;
         Ok(Self::new(client, config))
     }
 
@@ -70,16 +75,21 @@ impl Client {
         // The stream will filter out messages that are not from the current request.
         let stream = self.client.stream().await?;
 
-        self.client.send_text(create_speech_config_message(
-            request_id.to_string(),
-            &config,
-        ))?;
-        self.client.send_text(create_synthesis_context_message(
-            request_id.to_string(),
-            &config,
-        ))?;
         self.client
-            .send_text(create_ssml_message(request_id.to_string(), xml))?;
+            .send_text(create_speech_config_message(
+                request_id.to_string(),
+                &config,
+            ))
+            .await?;
+        self.client
+            .send_text(create_synthesis_context_message(
+                request_id.to_string(),
+                &config,
+            ))
+            .await?;
+        self.client
+            .send_text(create_ssml_message(request_id.to_string(), &xml))
+            .await?;
 
         let session2 = session.clone();
         Ok(stream

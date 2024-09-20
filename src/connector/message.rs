@@ -2,7 +2,6 @@ use crate::connector::utils::{
     extract_headers_and_data_from_binary_message, extract_headers_and_data_from_text_message,
     make_binary_payload, make_text_payload,
 };
-use ezsockets::Message as EzMessage;
 
 /// Data type for message payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,7 +54,7 @@ impl Message {
     }
 }
 
-impl From<Message> for EzMessage {
+impl From<Message> for tokio_websockets::Message {
     fn from(message: Message) -> Self {
         let headers = vec![
             (REQUEST_ID_HEADER.to_string(), message.id),
@@ -65,23 +64,27 @@ impl From<Message> for EzMessage {
         let headers = headers.into_iter().chain(message.headers).collect();
 
         match message.data {
-            Data::Binary(data) => EzMessage::Binary(make_binary_payload(headers, data)),
-            Data::Text(data) => EzMessage::Text(make_text_payload(headers, data)),
+            Data::Binary(data) => {
+                tokio_websockets::Message::binary(make_binary_payload(headers, data.as_deref()))
+            }
+            Data::Text(data) => {
+                tokio_websockets::Message::text(make_text_payload(headers, data.as_deref()))
+            }
         }
     }
 }
 
-impl TryFrom<String> for Message {
+impl TryFrom<&str> for Message {
     type Error = crate::Error;
-    fn try_from(value: String) -> crate::Result<Self> {
+    fn try_from(value: &str) -> crate::Result<Self> {
         let (headers, text) = extract_headers_and_data_from_text_message(value)?;
         Ok(Message::from_headers_and_data(headers, Data::Text(text)))
     }
 }
 
-impl TryFrom<Vec<u8>> for Message {
+impl TryFrom<&[u8]> for Message {
     type Error = crate::Error;
-    fn try_from(value: Vec<u8>) -> crate::Result<Self> {
+    fn try_from(value: &[u8]) -> crate::Result<Self> {
         let (headers, data) = extract_headers_and_data_from_binary_message(value)?;
         Ok(Message::from_headers_and_data(headers, Data::Binary(data)))
     }
@@ -99,7 +102,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_message_to_ezmessage() {
+    fn test_message_to_twsmessage() {
         let message = Message::new(
             "id".to_string(),
             "path".to_string(),
@@ -107,19 +110,19 @@ mod tests {
             Data::Text(Some("data".to_string())),
         );
 
-        let ezmessage: EzMessage = message.clone().into();
+        let ezmessage: tokio_websockets::Message = message.clone().into();
         let headers = vec![
             (REQUEST_ID_HEADER.to_string(), "id".to_string()),
             (PATH_HEADER.to_string(), "path".to_string()),
             ("header".to_string(), "value".to_string()),
         ];
 
-        match ezmessage {
-            EzMessage::Text(text) => {
-                let text_from_message = make_text_payload(headers, Some("data".to_string()));
+        match ezmessage.as_text() {
+            Some(text) => {
+                let text_from_message = make_text_payload(headers, Some("data"));
                 assert_eq!(text, text_from_message);
             }
-            _ => unreachable!(),
+            None => unreachable!(),
         }
     }
 
@@ -131,10 +134,10 @@ mod tests {
                 (PATH_HEADER.to_string(), "path".to_string()),
                 ("header".to_string(), "value".to_string()),
             ],
-            Some("data".to_string()),
+            Some("data"),
         );
 
-        let message: Message = text.try_into().unwrap();
+        let message = Message::try_from(text.as_str()).unwrap();
         assert_eq!(
             message,
             Message::new(
@@ -154,10 +157,10 @@ mod tests {
                 (PATH_HEADER.to_string(), "path".to_string()),
                 ("header".to_string(), "value".to_string()),
             ],
-            Some("data".as_bytes().to_vec()),
+            Some("data".as_bytes()),
         );
 
-        let message: Message = data.try_into().unwrap();
+        let message = Message::try_from(data.as_slice()).unwrap();
         assert_eq!(
             message,
             Message::new(
@@ -180,7 +183,7 @@ mod tests {
             None,
         );
 
-        let message: Message = message.try_into().unwrap();
+        let message = Message::try_from(message.as_slice()).unwrap();
         assert_eq!(
             message,
             Message::new(

@@ -24,7 +24,7 @@ pub(crate) fn create_speech_config_message(
             ),
         ],
         Some(
-            json!({
+            &json!({
                 "context": {
                     "system": config.device.system,
                     "os": config.device.os,
@@ -128,14 +128,14 @@ pub(crate) fn create_speech_context_message(request_id: String, config: &Config)
                     .to_string(),
             ),
         ],
-        Some(context.to_string()),
+        Some(&context.to_string()),
     )
 }
 
 pub(crate) fn create_audio_message(
     request_id: String,
     content_type: Option<ContentType>,
-    data: Option<Vec<u8>>,
+    data: Option<&[u8]>,
 ) -> Vec<u8> {
     let mut headers = vec![
         ("X-RequestId".to_string(), request_id),
