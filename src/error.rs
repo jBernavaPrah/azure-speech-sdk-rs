@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::result;
 use std::sync::PoisonError;
 
@@ -62,3 +62,22 @@ impl From<std::io::Error> for Error {
         Error::IOError(e.to_string())
     }
 }
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::IOError(s) => write!(f, "IO error: {s}"),
+            Self::InvalidResponse(s) => write!(f, "Invalid response from server: {s}"),
+            Self::ParseError(s) => write!(f, "Failed to parse response from server: {s}"),
+            Self::InternalError(s) => write!(f, "Internal error: {s}"),
+            Self::RuntimeError(s) => write!(f, "Runtime error: {s}"),
+            Self::ServerDisconnect(s) => write!(f, "Disconnected from server: {s}"),
+            Self::ConnectionError(s) => write!(f, "Server connection closed due to error: {s}"),
+            Self::Forbidden => f.write_str("Invalid credentials"),
+            Self::TooManyRequests => f.write_str("Rate limited"),
+            Self::BadRequest => f.write_str("Malformed request"),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
