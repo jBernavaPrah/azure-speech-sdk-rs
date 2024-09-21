@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.2.3...v0.3.0) - 2024-09-21
+
+### Added
+
+- impl `std::error::Error` for Error
+
+- Replace `ezsockets` with `tokio-websockets` ([#14](https://github.com/jBernavaPrah/azure-speech-sdk-rs/pull/14))
+
 ## [0.2.3](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.2.2...v0.2.3) - 2024-08-16
 
 ### Other
