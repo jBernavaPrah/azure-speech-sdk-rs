@@ -20,7 +20,7 @@ pub(crate) fn create_speech_config_message(request_id: String, config: &Config) 
             ),
         ],
         Some(
-            json!({"context":{"system":&config.device.system,"os":&config.device.os}}).to_string(),
+            &json!({"context":{"system":&config.device.system,"os":&config.device.os}}).to_string(),
         ),
     )
 }
@@ -42,7 +42,7 @@ pub(crate) fn create_synthesis_context_message(request_id: String, config: &Conf
             ("Path".to_string(), "synthesis.context".to_string()),
         ],
         Some(
-            json!({"synthesis":
+            &json!({"synthesis":
             {"audio":
                 {"metadataOptions":
                     {
@@ -62,7 +62,7 @@ pub(crate) fn create_synthesis_context_message(request_id: String, config: &Conf
     )
 }
 
-pub(crate) fn create_ssml_message(request_id: String, ssml: String) -> String {
+pub(crate) fn create_ssml_message(request_id: String, ssml: &str) -> String {
     make_text_payload(
         vec![
             (

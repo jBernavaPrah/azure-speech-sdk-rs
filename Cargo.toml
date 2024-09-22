@@ -1,6 +1,6 @@
 [package]
 name = "azure-speech"
-version = "0.2.3"
+version = "0.3.0"
 authors = ["Jure Bernava Prah <webjure@gmail.com>"]
 description = "Pure Rust SDK for Azure Speech Service"
 edition = "2021"
@@ -27,9 +27,10 @@ keywords = [
 ]
 
 [dependencies]
-tokio = { version = "=1.38", features = ["sync"] }
-tracing = "0.1"
-ezsockets = { version = "0.6", features = ["native-tls", "native_client"] }
+tokio = { version = "1.40", features = ["sync", "macros", "rt"] }
+tracing = { version = "0.1", default-features = false }
+tokio-websockets = { version = "0.10", features = ["client"] }
+futures-util = { version = "0.3", default-features = false, features = [ "std", "sink" ] }
 async-trait = "0.1"
 tokio-stream = { version = "0.1", features = ["sync"] }
 pin-project-lite = "0.2.14"
@@ -41,8 +42,14 @@ serde_json = "1.0.114"
 os_info = "3"
 
 ssml = "0.1.0"
-async-channel = "1.9.0" # needed for ezsockets 0.6 for call_with;
 
+[features]
+default = ["tws-rustls-native-roots", "tws-fastrand", "tws-smol-sha1"]
+tws-rustls-native-roots = ["tokio-websockets/rustls-webpki-roots", "tokio-websockets/ring"]
+tws-rustls-webpki-roots = ["tokio-websockets/rustls-native-roots", "tokio-websockets/ring"]
+tws-native-tls = ["tokio-websockets/native-tls"]
+tws-smol-sha1 = ["tokio-websockets/sha1_smol"]
+tws-fastrand = ["tokio-websockets/fastrand"]
 
 [dev-dependencies]
 tokio = { version = "1.36.0", features = ["full"] }
