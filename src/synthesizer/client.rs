@@ -15,7 +15,7 @@ use tokio_stream::{Stream, StreamExt as _};
 pub struct Client {
     /// The client to send and receive messages.
     pub client: BaseClient,
-    config: Config,
+    pub config: Config,
 }
 
 impl Client {

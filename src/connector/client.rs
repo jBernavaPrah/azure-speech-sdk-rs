@@ -79,7 +79,7 @@ impl Client {
                                     // expecting a stream, now would be a good time to try to reconnect.
                                     let mut last_error = None;
                                     for i in 0..3 {
-                                        tracing::debug!("Reconncting ({i}/3)");
+                                        tracing::debug!("Reconnecting ({i}/3)");
                                         match config.connect().await {
                                             Ok((new_stream, _)) => {
                                                 tracing::debug!("Reconnected successfully");
