@@ -19,7 +19,7 @@ static BUFFER_SIZE: usize = 4096;
 pub struct Client {
     /// The client to send and receive messages.
     pub client: BaseClient,
-    config: Config,
+    pub config: Config,
 }
 
 impl Client {
