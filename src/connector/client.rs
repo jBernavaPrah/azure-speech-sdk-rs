@@ -119,7 +119,9 @@ impl Client {
                                     let mut last_error = None;
                                     for i in 0..3 {
                                         tracing::debug!("Reconnecting ({i}/3)");
+
                                         match client.connect().await {
+
                                             Ok((new_stream, _)) => {
                                                 tracing::debug!("Reconnected successfully");
                                                 drop(last_error.take());
