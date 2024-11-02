@@ -2,10 +2,11 @@ use crate::connector::make_text_payload;
 use crate::synthesizer::config::Config;
 use serde_json::json;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio_websockets::Message;
 
 /// Creates a speech configuration message.
-pub(crate) fn create_speech_config_message(request_id: String, config: &Config) -> String {
-    make_text_payload(
+pub(crate) fn create_speech_config_message(request_id: String, config: &Config) -> Message {
+    Message::text(make_text_payload(
         vec![
             ("X-RequestId".to_string(), request_id),
             ("Path".to_string(), "speech.config".to_string()),
@@ -22,12 +23,12 @@ pub(crate) fn create_speech_config_message(request_id: String, config: &Config) 
         Some(
             &json!({"context":{"system":&config.device.system,"os":&config.device.os}}).to_string(),
         ),
-    )
+    ))
 }
 
 /// Creates a speech context message.
-pub(crate) fn create_synthesis_context_message(request_id: String, config: &Config) -> String {
-    make_text_payload(
+pub(crate) fn create_synthesis_context_message(request_id: String, config: &Config) -> Message {
+    Message::text(make_text_payload(
         vec![
             ("Content-Type".to_string(), "application/json".to_string()),
             (
@@ -59,11 +60,11 @@ pub(crate) fn create_synthesis_context_message(request_id: String, config: &Conf
             }})
             .to_string(),
         ),
-    )
+    ))
 }
 
-pub(crate) fn create_ssml_message(request_id: String, ssml: &str) -> String {
-    make_text_payload(
+pub(crate) fn create_ssml_message(request_id: String, ssml: &str) -> Message {
+    Message::text(make_text_payload(
         vec![
             (
                 "Content-Type".to_string(),
@@ -81,5 +82,5 @@ pub(crate) fn create_ssml_message(request_id: String, ssml: &str) -> String {
             ("Path".to_string(), "ssml".to_string()),
         ],
         Some(ssml),
-    )
+    ))
 }

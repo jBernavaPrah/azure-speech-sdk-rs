@@ -21,6 +21,12 @@ pub enum Error {
     BadRequest,
 }
 
+impl From<tokio_websockets::Error> for Error {
+    fn from(err: tokio_websockets::Error) -> Error {
+        Error::ConnectionError(err.to_string())
+    }
+}
+
 impl From<url::ParseError> for Error {
     fn from(e: url::ParseError) -> Self {
         Error::ParseError(e.to_string())

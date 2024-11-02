@@ -3,13 +3,14 @@ use crate::recognizer::{ContentType, Details};
 use crate::{make_binary_payload, make_text_payload};
 use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio_websockets::Message;
 
 pub(crate) fn create_speech_config_message(
     request_id: String,
     config: &Config,
     details: &Details,
-) -> String {
-    make_text_payload(
+) -> Message {
+    Message::text(make_text_payload(
         vec![
             ("X-RequestId".to_string(), request_id),
             ("Path".to_string(), "speech.config".to_string()),
@@ -44,10 +45,10 @@ pub(crate) fn create_speech_config_message(
             })
             .to_string(),
         ),
-    )
+    ))
 }
 
-pub(crate) fn create_speech_context_message(request_id: String, config: &Config) -> String {
+pub(crate) fn create_speech_context_message(request_id: String, config: &Config) -> Message {
     let mut context = json!({});
 
     if let Some(grammars) = config.phrases.as_ref() {
@@ -114,7 +115,7 @@ pub(crate) fn create_speech_context_message(request_id: String, config: &Config)
         });
     }
 
-    make_text_payload(
+    Message::text(make_text_payload(
         vec![
             ("X-RequestId".to_string(), request_id.to_string()),
             ("Path".to_string(), "speech.context".to_string()),
@@ -129,14 +130,14 @@ pub(crate) fn create_speech_context_message(request_id: String, config: &Config)
             ),
         ],
         Some(&context.to_string()),
-    )
+    ))
 }
 
 pub(crate) fn create_audio_message(
     request_id: String,
     content_type: Option<ContentType>,
     data: Option<&[u8]>,
-) -> Vec<u8> {
+) -> Message {
     let mut headers = vec![
         ("X-RequestId".to_string(), request_id),
         ("Path".to_string(), "audio".to_string()),
@@ -157,5 +158,5 @@ pub(crate) fn create_audio_message(
         ));
     }
 
-    make_binary_payload(headers, data)
+    Message::binary(make_binary_payload(headers, data))
 }

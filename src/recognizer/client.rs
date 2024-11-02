@@ -23,20 +23,17 @@ pub struct Client {
 }
 
 impl Client {
-    pub(crate) fn new(client: BaseClient, config: Config) -> Self {
+    pub fn new(client: BaseClient, config: Config) -> Self {
         Self { client, config }
     }
 
     pub async fn connect(auth: Auth, config: Config) -> crate::Result<Self> {
-        let mut url = Url::parse(
-            format!(
-                "wss://{}.stt.speech{}/speech/recognition/{}/cognitiveservices/v1",
-                auth.region,
-                get_azure_hostname_from_region(auth.region.as_str()),
-                config.mode.as_str()
-            )
-            .as_str(),
-        )?;
+        let mut url = Url::parse(&format!(
+            "wss://{}.stt.speech{}/speech/recognition/{}/cognitiveservices/v1",
+            auth.region,
+            get_azure_hostname_from_region(&auth.region),
+            config.mode.as_str()
+        ))?;
 
         let lang = config
             .languages
@@ -98,6 +95,7 @@ impl Client {
     {
         let mut audio = Box::pin(stream);
 
+        // todo: add on configuration the connection timeout
         let messages = self.client.stream().await?;
 
         let session = Session::new(uuid::Uuid::new_v4());
@@ -105,28 +103,30 @@ impl Client {
         let request_id = session.request_id().to_string();
 
         self.client
-            .send_text(create_speech_config_message(
+            .send(create_speech_config_message(
                 request_id.clone(),
                 &config,
                 &details,
             ))
             .await?;
+
         self.client
-            .send_text(create_speech_context_message(request_id.clone(), &config))
+            .send(create_speech_context_message(request_id.clone(), &config))
             .await?;
 
         // Here I'm moving away from the original code.
-        // I'm not interest anymore in the audio headers, but in the content type of the stream.
+        // I'm not sending anymore in the audio headers but only the content-type of the stream.
         self.client
-            .send_binary(create_audio_message(
+            .send(create_audio_message(
                 request_id.clone(),
-                Some(content_type),
+                Some(content_type), // <-- this is enough
                 None,
             ))
             .await?;
 
         let client = self.client.clone();
         let session1 = session.clone();
+
         tokio::spawn(async move {
             // todo: add throttle to the audio stream.
             // src/common.speech/ServiceRecognizerBase.ts:857
@@ -138,7 +138,7 @@ impl Client {
                 while buffer.len() >= BUFFER_SIZE {
                     let data: Vec<u8> = buffer.drain(..BUFFER_SIZE).collect();
                     if let Err(e) = client
-                        .send_binary(create_audio_message(
+                        .send(create_audio_message(
                             session1.request_id().to_string(),
                             None,
                             Some(&data),
@@ -154,7 +154,7 @@ impl Client {
             while !buffer.is_empty() {
                 let data: Vec<u8> = buffer.drain(..BUFFER_SIZE).collect();
                 let _ = client
-                    .send_binary(create_audio_message(
+                    .send(create_audio_message(
                         session1.request_id().to_string(),
                         None,
                         Some(&data),
@@ -163,7 +163,7 @@ impl Client {
             }
             // notify that we have finished sending the audio.
             let _ = client
-                .send_binary(create_audio_message(
+                .send(create_audio_message(
                     session1.request_id().to_string(),
                     None,
                     None,
@@ -174,22 +174,19 @@ impl Client {
 
         let session2 = session.clone();
         let session3 = session.clone();
+
         Ok(messages
-            // Map errors.
-            .map(move |message| match message {
-                Ok(message) => message,
-                Err(e) => Err(crate::Error::InternalError(e.to_string())),
-            })
             // Filter out messages that are not from the current session.
             .filter(move |message| match message {
                 Ok(message) => message.id == request_id.clone(),
-                Err(_) => true,
+                Err(_) => true, // move the error to next step
             })
             .filter_map(move |message| match message {
                 Ok(message) => convert_message_to_event(message, session2.clone()),
                 Err(e) => Some(Err(e)),
             })
             // Merge the session started event with the other events.
+            // todo: remove start session and use turn-start!
             .merge(tokio_stream::iter(vec![Ok(Event::SessionStarted(
                 session3.request_id(),
             ))]))
@@ -201,7 +198,7 @@ impl Client {
 fn convert_message_to_event(message: Message, session: Session) -> Option<crate::Result<Event>> {
     match (message.path.as_str(), message.data, message.headers) {
         // todo: check if another turn has started, before the latest finished?
-        ("turn.start", _, _) => None,
+        ("turn.start", _, _) => None, // todo: enable back this (it's the start session!)
         ("speech.startdetected", Data::Text(Some(data)), _) => {
             let value = match serde_json::from_str::<message::SpeechStartDetected>(&data) {
                 Ok(value) => value,
