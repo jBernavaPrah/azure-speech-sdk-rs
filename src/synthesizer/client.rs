@@ -76,28 +76,23 @@ impl Client {
         let stream = self.client.stream().await?;
 
         self.client
-            .send_text(create_speech_config_message(
+            .send(create_speech_config_message(
                 request_id.to_string(),
                 &config,
             ))
             .await?;
         self.client
-            .send_text(create_synthesis_context_message(
+            .send(create_synthesis_context_message(
                 request_id.to_string(),
                 &config,
             ))
             .await?;
         self.client
-            .send_text(create_ssml_message(request_id.to_string(), &xml))
+            .send(create_ssml_message(request_id.to_string(), &xml))
             .await?;
 
         let session2 = session.clone();
         Ok(stream
-            // Map errors.
-            .map(move |message| match message {
-                Ok(message) => message,
-                Err(e) => Err(crate::Error::InternalError(e.to_string())),
-            })
             // Filter out messages that are not from the current session.
             .filter(move |message| match message {
                 Ok(message) => message.id == session.request_id().to_string(),

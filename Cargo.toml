@@ -30,7 +30,7 @@ keywords = [
 tokio = { version = "1.40", features = ["sync", "macros", "rt"] }
 tracing = { version = "0.1", default-features = false }
 tokio-websockets = { version = "0.10", features = ["client"] }
-futures-util = { version = "0.3", default-features = false, features = [ "std", "sink" ] }
+futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
 async-trait = "0.1"
 tokio-stream = { version = "0.1", features = ["sync"] }
 pin-project-lite = "0.2.14"
@@ -42,6 +42,7 @@ serde_json = "1.0.114"
 os_info = "3"
 
 ssml = "0.1.0"
+log = "0.4.22"
 
 [features]
 default = ["tws-rustls-native-roots", "tws-fastrand", "tws-smol-sha1"]
@@ -52,6 +53,10 @@ tws-smol-sha1 = ["tokio-websockets/sha1_smol"]
 tws-fastrand = ["tokio-websockets/fastrand"]
 
 [dev-dependencies]
+
+tokio-websockets = { version = "0.10.1", features = ["server"] }
+http = "1.1.0"
+
 tokio = { version = "1.36.0", features = ["full"] }
 
 rodio = { version = "0.19.0", features = ["symphonia", "symphonia-wav", "symphonia-mp3"], default-features = false }

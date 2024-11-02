@@ -25,7 +25,7 @@
 
 mod auth;
 mod config;
-mod connector;
+pub mod connector;
 mod error;
 mod event;
 mod stream_ext;

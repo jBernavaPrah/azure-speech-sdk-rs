@@ -90,6 +90,22 @@ impl TryFrom<&[u8]> for Message {
     }
 }
 
+impl TryFrom<tokio_websockets::Message> for Message {
+    type Error = crate::Error;
+    fn try_from(value: tokio_websockets::Message) -> crate::Result<Self> {
+        if value.is_text() {
+            return Message::try_from(value.as_text().unwrap());
+        }
+        if value.is_binary() {
+            return Message::try_from(value.as_payload().to_vec().as_slice());
+        }
+
+        Err(crate::Error::InternalError(
+            "Cannot convert message to binary".into(),
+        ))
+    }
+}
+
 pub(crate) fn extract_header(headers: &mut Headers, header_name: &str) -> String {
     match headers.iter().position(|(k, _)| k == header_name) {
         Some(index) => headers.remove(index).1,

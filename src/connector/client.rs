@@ -1,13 +1,17 @@
-use crate::connector::message::Message;
 use futures_util::SinkExt;
+use std::time::Duration;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::BroadcastStream;
-use tokio_stream::StreamExt;
+use tokio_stream::{Stream, StreamExt};
 use tokio_websockets::ClientBuilder;
 
 enum InternalMessage {
     SendMessage(tokio_websockets::Message),
-    Subscribe(oneshot::Sender<crate::Result<broadcast::Receiver<crate::Result<Message>>>>),
+    Subscribe(
+        oneshot::Sender<
+            crate::Result<broadcast::Receiver<crate::Result<tokio_websockets::Message>>>,
+        >,
+    ),
     Disconnect,
 }
 
@@ -23,6 +27,13 @@ impl Client {
     }
 }
 impl Client {
+    pub async fn send(&self, message: tokio_websockets::Message) -> crate::Result<()> {
+        self.channel
+            .send(InternalMessage::SendMessage(message))
+            .await?;
+        Ok(())
+    }
+
     /// Send a text message to the server.
     pub async fn send_text(&self, text: impl Into<String>) -> crate::Result<()> {
         self.channel
@@ -44,20 +55,48 @@ impl Client {
     }
 
     /// Stream messages from the server.
-    pub async fn stream(&self) -> crate::Result<BroadcastStream<crate::Result<Message>>> {
+    pub async fn stream(&self) -> crate::Result<impl Stream<Item = crate::Result<crate::Message>>> {
         let (sender, receiver) = oneshot::channel();
         self.channel
             .send(InternalMessage::Subscribe(sender))
             .await?;
-        Ok(BroadcastStream::new(receiver.await.map_err(|_| {
+
+        let br = BroadcastStream::new(receiver.await.map_err(|_| {
             crate::Error::InternalError("Failed to subscribe to messages".to_string())
-        })??))
+        })??)
+        .timeout(Duration::from_secs(30));
+
+        let br = Box::pin(br);
+
+        let br = br
+            .map(move |m| {
+                tracing::debug!("Received new message: {:?}", m);
+                m
+            })
+            .map(move |message| match message {
+                Ok(message) => match message {
+                    Ok(message) => message,
+                    // broadcast error
+                    Err(e) => Err(crate::Error::InternalError(e.to_string())),
+                },
+                // timeout error
+                Err(e) => Err(crate::Error::ConnectionError(e.to_string())),
+            })
+            .map(move |message| {
+                message.and_then(|msg| {
+                    crate::Message::try_from(msg)
+                        .map_err(|e| crate::Error::InternalError(e.to_string()))
+                })
+            })
+            .map(move |m| m);
+
+        Ok(br)
     }
 }
 
 impl Client {
-    pub(crate) async fn connect(config: ClientBuilder<'static>) -> crate::Result<Self> {
-        let (mut stream, _res) = config.connect().await.unwrap();
+    pub async fn connect(client: ClientBuilder<'static>) -> crate::Result<Self> {
+        let (mut stream, _res) = client.connect().await?;
         let (sender, mut receiver) = mpsc::channel(16);
         tokio::spawn(async move {
             let (broadcaster, _) = broadcast::channel(32);
@@ -80,7 +119,9 @@ impl Client {
                                     let mut last_error = None;
                                     for i in 0..3 {
                                         tracing::debug!("Reconnecting ({i}/3)");
-                                        match config.connect().await {
+
+                                        match client.connect().await {
+
                                             Ok((new_stream, _)) => {
                                                 tracing::debug!("Reconnected successfully");
                                                 drop(last_error.take());
@@ -89,7 +130,7 @@ impl Client {
                                                 break;
                                             }
                                             Err(e) => {
-                                                tracing::warn!("Failed to reconnect ({i}/3): {e}");
+                                                tracing::error!("Failed to reconnect ({i}/3): {e}");
                                                 last_error.replace(e);
                                             }
                                         }
@@ -97,12 +138,12 @@ impl Client {
 
                                     // If we still haven't reconnected, send the error to the client.
                                     if let Some(err) = last_error.take() {
-                                        c.send(Err(crate::Error::ConnectionError(err.to_string()))).unwrap();
+                                        let _ = c.send(Err(crate::Error::ConnectionError(err.to_string())));
                                         continue;
                                     }
                                 }
 
-                                c.send(Ok(broadcaster.subscribe())).unwrap();
+                                let _ = c.send(Ok(broadcaster.subscribe()));
                             },
                             InternalMessage::Disconnect => {
                                 connected = false;
@@ -119,27 +160,28 @@ impl Client {
                         };
                         match msg {
                             Ok(msg) => {
-                                if msg.is_text() {
-                                    let text = msg.as_text().unwrap();
-                                    broadcaster.send(Message::try_from(text)).unwrap();
-                                } else if msg.is_binary() {
-                                    let bin = msg.as_payload();
-                                    broadcaster.send(Message::try_from(&**bin)).unwrap();
+
+                                if msg.is_text() || msg.is_binary() {
+                                    let _ = broadcaster.send(Ok(msg.clone()));
                                 } else if msg.is_close() {
                                     connected = false;
 
                                     let close = msg.as_close().unwrap();
-                                    tracing::info!(reason = ?close.0, msg = close.1, "disconnected from server");
+                                    let _ = broadcaster.send(Err(crate::Error::ServerDisconnect(format!("{:?}", close))));
+                                    tracing::warn!(reason = ?close.0, msg = close.1, "disconnected from server");
                                 }
                             },
                             Err(e) => {
                                 tracing::warn!(?e, "connection errored");
+                                let _ = broadcaster.send(Err(e.into()));
                                 connected = false;
                             }
                         }
                     }
                 }
             }
+
+            tracing::debug!(reason = ?connected, "connection terminated");
         });
         Ok(Client::new(sender))
     }

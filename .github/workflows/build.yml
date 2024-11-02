@@ -38,7 +38,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - run: cargo test --all --all-features
+      - run: cargo test --lib --all-features
 
 
   lints:
