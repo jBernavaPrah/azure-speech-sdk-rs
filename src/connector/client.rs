@@ -70,7 +70,7 @@ impl Client {
 
         let br = br
             .map(move |m| {
-                tracing::trace!("Downstream message: {:?}", m);
+                tracing::debug!("Downstream message: {:?}", m);
                 m
             })
             .map(move |message| match message {
@@ -120,7 +120,9 @@ impl Client {
                                     let mut last_error = None;
                                     for i in 0..3 {
                                         tracing::debug!("Reconnecting ({i}/3)");
+
                                         match client.connect().await {
+
                                             Ok((new_stream, _)) => {
                                                 tracing::debug!("Reconnected successfully");
                                                 drop(last_error.take());
@@ -179,8 +181,6 @@ impl Client {
                     }
                 }
             }
-
-            tracing::debug!(reason = ?connected, "connection terminated");
         });
         Ok(Client::new(sender))
     }

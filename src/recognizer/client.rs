@@ -68,8 +68,6 @@ impl Client {
                 .append_pair("X-ConnectionId", connection_id.as_str());
         }
 
-        info!("Connecting to: {}", url);
-
         let client = BaseClient::connect(
             tokio_websockets::ClientBuilder::new()
                 .uri(url.as_str())
@@ -331,7 +329,7 @@ fn convert_message_to_event(message: Message, session: &Session) -> Option<crate
 
         ("turn.end", _, _) => {
             if session.is_audio_completed() {
-                // removed this.
+                // remove this.
                 //return Some(Ok(Event::SessionEnded(session.request_id())));
             };
 

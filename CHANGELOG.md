@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.3.1...v0.3.2) - 2024-11-02
+
+### Other
+
+- Bugfix/broadcast sender fix ([#21](https://github.com/jBernavaPrah/azure-speech-sdk-rs/pull/21))
+
+## [0.3.1](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.3.0...v0.3.1) - 2024-10-21
+
+### Other
+
+- development ([#19](https://github.com/jBernavaPrah/azure-speech-sdk-rs/pull/19))
+
 ## [0.3.0](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.2.3...v0.3.0) - 2024-09-21
 
 ### Added
