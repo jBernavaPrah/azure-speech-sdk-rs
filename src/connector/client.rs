@@ -70,7 +70,7 @@ impl Client {
 
         let br = br
             .map(move |m| {
-                tracing::debug!("Received new message: {:?}", m);
+                tracing::debug!("Downstream message: {:?}", m);
                 m
             })
             .map(move |message| match message {
@@ -110,6 +110,7 @@ impl Client {
                         };
                         match msg {
                             InternalMessage::SendMessage(msg) => {
+                                tracing::trace!("Upstream message: {:?}", msg.as_text());
                                 let _ = stream.send(msg).await;
                             },
                             InternalMessage::Subscribe(c) => {
@@ -180,8 +181,6 @@ impl Client {
                     }
                 }
             }
-
-            tracing::debug!(reason = ?connected, "connection terminated");
         });
         Ok(Client::new(sender))
     }

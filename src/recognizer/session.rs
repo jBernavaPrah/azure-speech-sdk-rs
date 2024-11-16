@@ -16,13 +16,22 @@ pub(crate) struct Session {
 }
 
 impl Session {
-    pub(crate) fn new(uuid: uuid::Uuid) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(SessionInner {
-                request_id: uuid,
+                request_id: uuid::Uuid::new_v4(),
                 ..Default::default()
             })),
         }
+    }
+
+    pub(crate) fn refresh(&self) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.request_id = uuid::Uuid::new_v4();
+        inner.is_audio_completed = false;
+        inner.audio_offset = 0;
+        inner.recognition_offset = 0;
+        inner.hypothesis_received = false;
     }
 
     pub(crate) fn on_hypothesis_received(&self, _offset: Offset) {

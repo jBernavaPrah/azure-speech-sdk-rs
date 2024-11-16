@@ -133,14 +133,13 @@ pub(crate) fn create_speech_context_message(request_id: String, config: &Config)
     ))
 }
 
-pub(crate) fn create_audio_message(
+pub(crate) fn create_audio_header_message(
     request_id: String,
-    content_type: Option<ContentType>,
-    data: Option<&[u8]>,
+    content_type: ContentType,
 ) -> Message {
     let mut headers = vec![
-        ("X-RequestId".to_string(), request_id),
         ("Path".to_string(), "audio".to_string()),
+        ("X-RequestId".to_string(), request_id),
         (
             "X-Timestamp".to_string(),
             SystemTime::now()
@@ -151,12 +150,30 @@ pub(crate) fn create_audio_message(
         ),
     ];
 
-    if let Some(content_type) = content_type {
-        headers.push((
-            "Content-Type".to_string(),
-            content_type.as_str().to_string(),
-        ));
-    }
+    headers.push((
+        "Content-Type".to_string(),
+        content_type.as_str().to_string(),
+    ));
+
+    Message::binary(make_binary_payload(
+        headers,
+        content_type.as_header().as_deref(),
+    ))
+}
+
+pub(crate) fn create_audio_message(request_id: String, data: Option<&[u8]>) -> Message {
+    let headers = vec![
+        ("Path".to_string(), "audio".to_string()),
+        ("X-RequestId".to_string(), request_id),
+        (
+            "X-Timestamp".to_string(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+                .to_string(),
+        ),
+    ];
 
     Message::binary(make_binary_payload(headers, data))
 }

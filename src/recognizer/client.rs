@@ -2,13 +2,16 @@ use crate::connector::Client as BaseClient;
 use crate::recognizer::content_type::ContentType;
 use crate::recognizer::session::Session;
 use crate::recognizer::utils::{
-    create_audio_message, create_speech_config_message, create_speech_context_message,
+    create_audio_header_message, create_audio_message, create_speech_config_message,
+    create_speech_context_message,
 };
 use crate::recognizer::{
     message, Confidence, Config, Details, Event, OutputFormat, PrimaryLanguage, Recognized,
 };
 use crate::utils::get_azure_hostname_from_region;
 use crate::{stream_ext::StreamExt, Auth, Data, Message};
+use std::cmp::min;
+use tokio::select;
 use tokio_stream::{Stream, StreamExt as _};
 use url::Url;
 
@@ -71,9 +74,14 @@ impl Client {
                 .add_header(
                     "Ocp-Apim-Subscription-Key".try_into().unwrap(),
                     auth.subscription.to_string().as_str().try_into().unwrap(),
+                )
+                .add_header(
+                    "X-ConnectionId".try_into().unwrap(),
+                    uuid::Uuid::new_v4().to_string().try_into().unwrap(),
                 ),
         )
         .await?;
+
         Ok(Self::new(client, config))
     }
 
@@ -86,77 +94,90 @@ impl Client {
     /// Recognize audio from a stream.
     pub async fn recognize<A>(
         &self,
-        stream: A,
+        mut audio: A,
         content_type: ContentType,
         details: Details,
     ) -> crate::Result<impl Stream<Item = crate::Result<Event>>>
     where
-        A: Stream<Item = Vec<u8>> + Send + 'static,
+        A: Stream<Item = Vec<u8>> + Send + 'static + Unpin,
     {
-        let mut audio = Box::pin(stream);
-
         // todo: add on configuration the connection timeout
         let messages = self.client.stream().await?;
 
-        let session = Session::new(uuid::Uuid::new_v4());
+        let session = Session::new();
         let config = self.config.clone();
-        let request_id = session.request_id().to_string();
-
-        self.client
-            .send(create_speech_config_message(
-                request_id.clone(),
-                &config,
-                &details,
-            ))
-            .await?;
-
-        self.client
-            .send(create_speech_context_message(request_id.clone(), &config))
-            .await?;
-
-        // Here I'm moving away from the original code.
-        // I'm not sending anymore in the audio headers but only the content-type of the stream.
-        self.client
-            .send(create_audio_message(
-                request_id.clone(),
-                Some(content_type), // <-- this is enough
-                None,
-            ))
-            .await?;
-
         let client = self.client.clone();
         let session1 = session.clone();
 
+        let mut buffer = Vec::with_capacity(BUFFER_SIZE);
+
+        let (restart_sender, mut rx) = tokio::sync::mpsc::channel(1);
+
+        client
+            .send(create_speech_config_message(
+                session1.request_id().to_string(),
+                &config,
+                &details,
+            ))
+            .await
+            .expect("to send speech config message");
+
         tokio::spawn(async move {
-            // todo: add throttle to the audio stream.
-            // src/common.speech/ServiceRecognizerBase.ts:857
+            'outer: loop {
+                client
+                    .send(create_speech_context_message(
+                        session1.request_id().to_string(),
+                        &config,
+                    ))
+                    .await
+                    .expect("to send speech context message");
 
-            let mut buffer = Vec::with_capacity(BUFFER_SIZE);
+                // Here I'm moving away from the original code.
+                // I'm not sending anymore in the audio headers but only the content-type of the stream.
+                client
+                    .send(create_audio_header_message(
+                        session1.request_id().to_string(),
+                        content_type.clone(),
+                    ))
+                    .await
+                    .expect("to send audio message");
 
-            while let Some(chunk) = audio.next().await {
-                buffer.extend(chunk);
-                while buffer.len() >= BUFFER_SIZE {
-                    let data: Vec<u8> = buffer.drain(..BUFFER_SIZE).collect();
-                    if let Err(e) = client
-                        .send(create_audio_message(
-                            session1.request_id().to_string(),
-                            None,
-                            Some(&data),
-                        ))
-                        .await
-                    {
-                        tracing::error!("Error: {:?}", e);
-                        return;
+                // todo: add throttle to the audio stream.
+                // src/common.speech/ServiceRecognizerBase.ts:857
+
+                loop {
+                    select! {
+                        _ = rx.recv() => {
+                            // Start a new session here!
+                            session1.refresh();
+                            break
+                        }
+
+                        chunk = audio.next() => {
+                            let Some(chunk) = chunk else {
+                                // Receiving `None` here means the stream has been dropped, so the task should stop as well.
+                                break 'outer;
+                            };
+
+                            buffer.extend(chunk);
+                            while buffer.len() >= BUFFER_SIZE {
+                                let data: Vec<u8> = buffer.drain(..BUFFER_SIZE).collect();
+
+                                if client.send(create_audio_message(session1.request_id().to_string(),Some(&data))).await.is_err()
+                                {
+                                    return;
+                                }
+                            }
+                        }
                     }
                 }
             }
 
             while !buffer.is_empty() {
-                let data: Vec<u8> = buffer.drain(..BUFFER_SIZE).collect();
+                let data: Vec<u8> = buffer.drain(..min(buffer.len(), BUFFER_SIZE)).collect();
                 let _ = client
                     .send(create_audio_message(
                         session1.request_id().to_string(),
-                        None,
                         Some(&data),
                     ))
                     .await;
@@ -166,39 +187,39 @@ impl Client {
                 .send(create_audio_message(
                     session1.request_id().to_string(),
                     None,
-                    None,
                 ))
                 .await;
             session1.set_audio_completed(true);
         });
 
         let session2 = session.clone();
-        let session3 = session.clone();
 
         Ok(messages
             // Filter out messages that are not from the current session.
             .filter(move |message| match message {
-                Ok(message) => message.id == request_id.clone(),
+                Ok(message) => message.id == session.request_id().to_string(),
                 Err(_) => true, // move the error to next step
             })
             .filter_map(move |message| match message {
-                Ok(message) => convert_message_to_event(message, session2.clone()),
+                Ok(message) => convert_message_to_event(message, &session2),
                 Err(e) => Some(Err(e)),
             })
-            // Merge the session started event with the other events.
-            // todo: remove start session and use turn-start!
-            .merge(tokio_stream::iter(vec![Ok(Event::SessionStarted(
-                session3.request_id(),
-            ))]))
+            .map(move |m| match m {
+                Ok(Event::SessionEnded(..)) => {
+                    let _ = restart_sender.try_send(()); // stop the audio stream
+                    m
+                }
+                _ => m,
+            })
             // Stop the stream if there is an error or the session ended.
-            .stop_after(move |event| event.is_err() || matches!(event, Ok(Event::SessionEnded(_)))))
+            .stop_after(move |event| event.is_err()))
     }
 }
 
-fn convert_message_to_event(message: Message, session: Session) -> Option<crate::Result<Event>> {
+fn convert_message_to_event(message: Message, session: &Session) -> Option<crate::Result<Event>> {
     match (message.path.as_str(), message.data, message.headers) {
         // todo: check if another turn has started, before the latest finished?
-        ("turn.start", _, _) => None, // todo: enable back this (it's the start session!)
+        ("turn.start", _, _) => Some(Ok(Event::SessionStarted(session.request_id()))),
         ("speech.startdetected", Data::Text(Some(data)), _) => {
             let value = match serde_json::from_str::<message::SpeechStartDetected>(&data) {
                 Ok(value) => value,
@@ -307,10 +328,11 @@ fn convert_message_to_event(message: Message, session: Session) -> Option<crate:
 
         ("turn.end", _, _) => {
             if session.is_audio_completed() {
-                return Some(Ok(Event::SessionEnded(session.request_id())));
+                // remove this.
+                //return Some(Ok(Event::SessionEnded(session.request_id())));
             };
 
-            None
+            Some(Ok(Event::SessionEnded(session.request_id())))
         }
 
         _ => None,
