@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             // Check the relative example for more details.
             create_audio_stream("tests/audios/examples_sample_files_turn_on_the_lamp.wav").await, // Try also the mp3 version of the file.
             // Here is the content type of the audio stream.
-            recognizer::ContentType::Wav, // Be sure to set it correctly.
+            recognizer::ContentType::Wav(vec![]), // The headers are empty because they are already present in the file.
             // The typology of the source. You can use unknown, file or stream.
             // More information can be requested by the method.
             recognizer::Details::file(),

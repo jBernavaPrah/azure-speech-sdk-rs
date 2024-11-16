@@ -70,7 +70,7 @@ impl Client {
 
         let br = br
             .map(move |m| {
-                tracing::debug!("Received new message: {:?}", m);
+                tracing::trace!("Downstream message: {:?}", m);
                 m
             })
             .map(move |message| match message {
@@ -110,6 +110,7 @@ impl Client {
                         };
                         match msg {
                             InternalMessage::SendMessage(msg) => {
+                                tracing::trace!("Upstream message: {:?}", msg.as_text());
                                 let _ = stream.send(msg).await;
                             },
                             InternalMessage::Subscribe(c) => {
