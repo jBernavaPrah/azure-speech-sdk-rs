@@ -13,7 +13,6 @@ use crate::{stream_ext::StreamExt, Auth, Data, Message};
 use std::cmp::min;
 use tokio::select;
 use tokio_stream::{Stream, StreamExt as _};
-use tracing::info;
 use url::Url;
 
 static BUFFER_SIZE: usize = 4096;
