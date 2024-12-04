@@ -118,9 +118,6 @@ where
     }
 
     /// Calls the provided callback for each item in the stream.
-    ///
-    ///
-
     fn use_callbacks<C>(self, callback: C) -> impl Future<Output = ()>
     where
         Self: Sized + Send + Sync,
