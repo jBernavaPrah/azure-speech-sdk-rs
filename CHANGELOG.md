@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.4.0...v0.4.1) - 2024-12-10
+
+### Other
+
+- Adding Debug to Config
+- Merge remote-tracking branch 'origin/master'
+- Minor improvements and bugfix.
+
 ## [0.4.0](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.3.2...v0.4.0) - 2024-11-16
 
 ### Other
