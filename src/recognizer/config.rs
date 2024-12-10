@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// The configuration for the recognizer.
 ///
 /// The configuration is used to set the parameters of the speech recognition.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Config {
     pub(crate) device: Device,
 

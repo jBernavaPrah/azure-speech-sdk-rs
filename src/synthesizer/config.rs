@@ -1,7 +1,7 @@
 use crate::config::Device;
 use crate::synthesizer::{AudioFormat, Language, Voice};
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct Config {
     pub(crate) output_format: AudioFormat,
 
