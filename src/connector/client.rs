@@ -1,6 +1,7 @@
 use futures_util::SinkExt;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
 use tokio_websockets::ClientBuilder;
@@ -73,14 +74,14 @@ impl Client {
                 tracing::debug!("Downstream message: {:?}", m);
                 m
             })
-            .map(move |message| match message {
+            .filter_map(move |message| match message {
                 Ok(message) => match message {
-                    Ok(message) => message,
-                    // broadcast error
-                    Err(e) => Err(crate::Error::InternalError(e.to_string())),
+                    Ok(message) => Some(message),
+                    // broadcast error, do not return it
+                    Err(_) => None,
                 },
                 // timeout error
-                Err(e) => Err(crate::Error::ConnectionError(e.to_string())),
+                Err(e) => Some(Err(crate::Error::ConnectionError(e.to_string()))),
             })
             .map(move |message| {
                 message.and_then(|msg| {
