@@ -61,7 +61,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Run cargo clippy
-        run: cargo  clippy -- -D warnings
+        run: cargo clippy -- -D warnings
 
       - name: Run rustdoc lints
         # env:

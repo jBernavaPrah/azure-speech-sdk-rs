@@ -1,7 +1,6 @@
 use futures_util::SinkExt;
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc, oneshot};
-use tokio_stream::wrappers::errors::BroadcastStreamRecvError;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
 use tokio_websockets::ClientBuilder;

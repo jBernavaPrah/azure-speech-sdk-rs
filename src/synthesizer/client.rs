@@ -64,7 +64,7 @@ impl Client {
                 .clone()
                 .unwrap_or(self.config.language.default_voice()),
         )?;
-        tracing::debug!("Sending ssml message: {:?}", xml);
+        tracing::debug!("Sending ssml message: {}", xml);
 
         let session = Session::new(uuid::Uuid::new_v4());
         let config = self.config.clone();
