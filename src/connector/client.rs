@@ -147,8 +147,8 @@ impl Client {
                                 let _ = c.send(Ok(broadcaster.subscribe()));
                             },
                             InternalMessage::Disconnect => {
-                                connected = false;
                                 let _ = stream.close().await;
+                                break;
                             }
                         }
                     }
@@ -186,8 +186,10 @@ impl Client {
     }
 
     /// Disconnect the client.
-    pub(crate) async fn disconnect(self) -> crate::Result<()> {
+    pub(crate) async fn disconnect(&self) -> crate::Result<()> {
         self.channel.send(InternalMessage::Disconnect).await?;
+        // await the client to disconnect.
+        self.channel.closed().await;
         Ok(())
     }
 }

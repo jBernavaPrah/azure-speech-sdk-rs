@@ -47,7 +47,7 @@ impl Client {
         Ok(Self::new(client, config))
     }
 
-    pub async fn disconnect(self) -> crate::Result<()> {
+    pub async fn disconnect(&self) -> crate::Result<()> {
         self.client.disconnect().await
     }
 }
