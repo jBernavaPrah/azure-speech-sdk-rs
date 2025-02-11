@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut events = client
         .recognize(
             stream,
-            recognizer::ContentType::Wav(header.into_header_for_infinite_file()),
+            recognizer::ContentType::Raw(header.into_header_for_infinite_file()), // filling the wav header from the listener
             recognizer::Details::stream("mac", "stream"),
         )
         .await

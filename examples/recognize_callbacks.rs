@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     client
         .recognize(
             create_audio_stream("tests/audios/examples_sample_files_turn_on_the_lamp.wav").await, // Try also the mp3 version of the file.
-            recognizer::ContentType::Wav(vec![]), // The headers are empty because they are already present in the file.
+            recognizer::ContentType::Wav,
             recognizer::Details::file(),
         )
         .await

@@ -2,11 +2,10 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ContentType {
     /// The audio data is in WAV format.
-    /// The header is sent first, then the audio data.
-    Wav(Vec<u8>),
-    /// The audio data is in WAV format.
-    /// The header is sent first, then the audio data.
-    Pcm(Vec<u8>),
+    Wav,
+    /// The audio data is in WAV format without the header.
+    /// Pass the header.
+    Raw(Vec<u8>),
     Flac,
     Opus,
     Mp3,
@@ -19,7 +18,7 @@ pub enum ContentType {
 impl ContentType {
     pub(crate) fn as_header(&self) -> Option<Vec<u8>> {
         match self {
-            ContentType::Wav(header) | ContentType::Pcm(header) => Some(header.clone()),
+            ContentType::Raw(header) => Some(header.clone()),
             ContentType::Specific(_, header) => header.clone(),
             _ => None,
         }
@@ -27,8 +26,8 @@ impl ContentType {
 
     pub(crate) fn as_str(&self) -> &str {
         match self {
-            ContentType::Wav(_) => "audio/x-wav",
-            ContentType::Pcm(_) => "audio/x-wav",
+            ContentType::Wav => "audio/x-wav",
+            ContentType::Raw(_) => "audio/x-wav",
             ContentType::Flac => "audio/flac",
             ContentType::Opus => "audio/ogg; codecs=opus",
             ContentType::Mp3 => "audio/mpeg",
