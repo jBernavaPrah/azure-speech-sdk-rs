@@ -2,6 +2,7 @@ use azure_speech::{synthesizer, Auth};
 use std::env;
 use std::error::Error;
 use tokio_stream::StreamExt;
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -58,6 +59,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     request_id,
                     audio.len()
                 );
+                
+                info!("audio header: {:x?}", &audio[0..44]);
             }
             // this will print a lot of events to the console.
             _ => tracing::info!("Synthesizer: Event {:?}", event),

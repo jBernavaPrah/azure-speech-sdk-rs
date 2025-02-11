@@ -1,23 +1,30 @@
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Default)]
 pub enum AudioFormat {
+    
+    // with header
+    Riff8Khz8BitMonoALaw,
+    Riff8Khz8BitMonoMULaw,
+    Riff8Khz16BitMonoPcm,
     #[default]
     Riff16Khz16BitMonoPcm,
-    Riff8Khz16BitMonoPcm,
-    Riff24Khz16BitMonoPcm,
-    Riff8Khz8BitMonoMULaw,
-    Raw16Khz16BitMonoPcm,
-    Raw24Khz16BitMonoPcm,
-    Raw8Khz16BitMonoPcm,
-    Raw48Khz16BitMonoPcm,
-    Riff48Khz16BitMonoPcm,
-    Raw22050Hz16BitMonoPcm,
     Riff22050Hz16BitMonoPcm,
-    Raw44100Hz16BitMonoPcm,
+    Riff24Khz16BitMonoPcm,
     Riff44100Hz16BitMonoPcm,
+    Riff48Khz16BitMonoPcm,
 
+    // without header at the beginning
     Raw8Khz8BitMonoMULaw,
     Raw8Khz8BitMonoALaw,
-    Riff8Khz8BitMonoALaw,
+
+    Raw8Khz16BitMonoPcm,
+    Raw16Khz16BitMonoPcm,
+    Raw16Khz16BitMonoTrueSilk,
+    Raw22050Hz16BitMonoPcm,
+    Raw24Khz16BitMonoPcm,
+    Raw24Khz16BitMonoTrueSilk,
+    Raw44100Hz16BitMonoPcm,
+    Raw48Khz16BitMonoPcm,
+
 
     Riff16Khz16KbpsMonoSiren,
     Audio16Khz16KbpsMonoSiren,
@@ -31,8 +38,7 @@ pub enum AudioFormat {
     Audio48Khz96KBitRateMonoMp3,
     Audio48Khz192KBitRateMonoMp3,
 
-    Raw16Khz16BitMonoTrueSilk,
-    Raw24Khz16BitMonoTrueSilk,
+    
 
     Ogg48Khz16BitMonoOpus,
     Ogg16Khz16BitMonoOpus,
