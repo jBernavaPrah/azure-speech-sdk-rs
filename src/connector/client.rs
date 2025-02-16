@@ -70,7 +70,7 @@ impl Client {
 
         let br = br
             .map(move |m| {
-                tracing::debug!("Downstream message: {:?}", m);
+                tracing::trace!("Downstream message: {:?}", m);
                 m
             })
             .filter_map(move |message| match message {

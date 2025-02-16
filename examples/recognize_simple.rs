@@ -51,16 +51,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )
         .await
         .expect("to recognize");
-    
-    // disconnect manually after 5 seconds. 
+
+    // disconnect manually after 5 seconds.
     // automatically will disconnect after 30 seconds...
     tokio::spawn(async move {
-        
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
         tracing::info!("Disconnecting...");
         client.disconnect().await.expect("to disconnect");
         tracing::info!("Disconnected!");
-        
     });
 
     while let Some(event) = stream.next().await {

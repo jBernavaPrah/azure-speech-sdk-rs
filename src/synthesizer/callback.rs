@@ -1,11 +1,11 @@
 use crate::callback::{BoxFuture, OnError, OnSessionEnded, OnSessionStarted};
-use crate::synthesizer::Event;
+use crate::synthesizer::{message, Event};
 use crate::RequestId;
 use std::future::Future;
 use std::sync::Arc;
 
 pub(crate) type OnSynthesising = Arc<Box<dyn Fn(RequestId, Vec<u8>) -> BoxFuture>>;
-pub(crate) type OnAudioMetadata = Arc<Box<dyn Fn(RequestId, String) -> BoxFuture>>;
+pub(crate) type OnAudioMetadata = Arc<Box<dyn Fn(RequestId, Vec<message::Metadata>) -> BoxFuture>>;
 pub(crate) type OnSynthesised = Arc<Box<dyn Fn(RequestId) -> BoxFuture>>;
 
 #[derive(Default, Clone)]
@@ -65,7 +65,7 @@ impl Callback {
 
     pub fn on_audio_metadata<F, Fut>(mut self, func: F) -> Self
     where
-        F: Fn(RequestId, String) -> Fut + Send + Sync + 'static,
+        F: Fn(RequestId, Vec<message::Metadata>) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = ()> + Send + 'static,
     {
         self.on_audio_metadata = Some(Arc::new(Box::new(move |request_id, metadata| {

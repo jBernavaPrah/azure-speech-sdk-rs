@@ -2,12 +2,11 @@ use azure_speech::{synthesizer, Auth};
 use std::env;
 use std::error::Error;
 use tokio_stream::StreamExt;
-use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(tracing::Level::DEBUG)
         .init();
 
     // Add your Azure region and subscription key to the environment variables.
@@ -25,7 +24,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //
     // It will understand the en-US language and will use the EnUsJennyNeural voice.
     // You can change it by using the Config struct and its methods.
-    let config = synthesizer::Config::default();
+    let config = synthesizer::Config::default()
+        .enable_word_boundary()
+        .enable_sentence_boundary()
+        .enable_punctuation_boundary()
+        .enable_viseme()
+        .enable_bookmark()
+        .enable_session_end();
     //.enable_punctuation_boundary()
     //.enable_word_boundary()
     //.enable_sentence_boundary()
@@ -59,8 +64,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     request_id,
                     audio.len()
                 );
-                
-                info!("audio header: {:x?}", &audio[0..44]);
+
+                tracing::info!("audio header: {:x?}", &audio[0..44]);
             }
             // this will print a lot of events to the console.
             _ => tracing::info!("Synthesizer: Event {:?}", event),

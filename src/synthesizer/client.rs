@@ -150,7 +150,11 @@ fn convert_message_to_event(message: Message, session: Session) -> Option<crate:
             None
         }
         ("audio.metadata", Data::Text(Some(string)), _) => {
-            Some(Ok(Event::AudioMetadata(session.request_id(), string)))
+            let value = match serde_json::from_str::<message::Root>(&string) {
+                Ok(value) => value.metadata,
+                Err(e) => return Some(Err(crate::Error::ParseError(e.to_string()))),
+            };
+            Some(Ok(Event::AudioMetadata(session.request_id(), value)))
         }
         ("turn.end", _, _) => Some(Ok(Event::SessionEnded(session.request_id()))),
         _ => {
