@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.4.4...v0.5.0) - 2025-02-16
+
+### Added
+
+- Added Audio Metadata on the synthesizer client.
+- Fix the content type for the recognizer. Wav, has already the headers in the file, vs raw, needs to specify the headers.
+
+### Other
+
+- Added comment on AudioFormat for the synthesizer.
+
 ## [0.4.4](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.4.3...v0.4.4) - 2025-02-11
 
 ### Fixed
