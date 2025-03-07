@@ -105,8 +105,6 @@ fn serialize_to_ssml(speak: &impl Serialize) -> crate::Result<String> {
         .map_err(|e| crate::Error::InternalError(e.to_string()))
 }
 
-
-
 // Easy to use struct to create SSML speak elements.
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct Speak {

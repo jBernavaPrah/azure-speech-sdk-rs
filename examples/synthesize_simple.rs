@@ -1,8 +1,8 @@
+use azure_speech::synthesizer::AudioFormat;
 use azure_speech::{synthesizer, Auth};
 use std::env;
 use std::error::Error;
 use tokio_stream::StreamExt;
-use azure_speech::synthesizer::AudioFormat;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -32,9 +32,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .enable_viseme()
         .enable_bookmark()
         .enable_session_end()
-    .with_language(synthesizer::Language::EnGb)
-    .with_voice(synthesizer::Voice::EnGbLibbyNeural)
-    .with_audio_format(AudioFormat::Audio48Khz192KBitRateMonoMp3);
+        .with_language(synthesizer::Language::EnGb)
+        .with_voice(synthesizer::Voice::EnGbLibbyNeural)
+        .with_audio_format(AudioFormat::Audio48Khz192KBitRateMonoMp3);
 
     let client = synthesizer::Client::connect(auth, config)
         .await
