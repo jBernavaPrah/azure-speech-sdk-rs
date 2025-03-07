@@ -1,8 +1,6 @@
 use azure_speech::{synthesizer, Auth};
 use std::env;
 use std::error::Error;
-use std::io::SeekFrom;
-use tokio::sync::mpsc::Receiver;
 use tokio_stream::StreamExt;
 
 #[tokio::main]
@@ -36,10 +34,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     while let Some(event) = stream.next().await {
         match event {
             Ok(synthesizer::Event::Synthesising(.., audio)) => {
-                sender.send(Some(audio)).await.expect("send audio chunk");
+                sender.send(audio).expect("send audio chunk");
             }
             Ok(synthesizer::Event::SessionEnded(..)) => {
-                sender.send(None).await.expect("send audio chunk");
                 break;
             }
             _ => {}
@@ -55,48 +52,65 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Returns a sender that you can use to feed WAV data to the default audio output.
+/// The returned thread will run until the sink finishes playing.
 pub fn sender_for_default_audio_output() -> (
-    tokio::sync::mpsc::Sender<Option<Vec<u8>>>,
+    std::sync::mpsc::Sender<Vec<u8>>,
     std::thread::JoinHandle<()>,
 ) {
-    let (tx, rx) = tokio::sync::mpsc::channel::<Option<Vec<u8>>>(10);
+    // Use a synchronous channel for this blocking thread.
+    let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
     let handler = std::thread::spawn(move || {
-        let (_stream, handle) = rodio::OutputStream::try_default().unwrap();
-        let sink = rodio::Sink::try_new(&handle).unwrap();
-        sink.append(rodio::Decoder::new(StreamMediaSource::new(rx)).unwrap());
+        // Initialize the default audio output stream.
+        let (_stream, handle) =
+            rodio::OutputStream::try_default().expect("Failed to obtain default output stream");
+        let sink = rodio::Sink::try_new(&handle).expect("Failed to create audio sink");
+
+        // Create our custom stream source and pass it to the WAV decoder.
+        let source = StreamMediaSource::new(rx);
+        let decoder = rodio::Decoder::new_wav(source).expect("Failed to decode WAV stream");
+        sink.append(decoder);
         sink.sleep_until_end();
     });
     (tx, handler)
 }
 
 pub(crate) struct StreamMediaSource {
-    inner: Receiver<Option<Vec<u8>>>,
+    inner: std::sync::Mutex<std::sync::mpsc::Receiver<Vec<u8>>>,
     buffer: Vec<u8>,
 }
 
 impl StreamMediaSource {
-    pub fn new(inner: Receiver<Option<Vec<u8>>>) -> Self {
+    pub fn new(inner: std::sync::mpsc::Receiver<Vec<u8>>) -> Self {
         Self {
-            inner,
+            inner: std::sync::Mutex::new(inner),
             buffer: Vec::with_capacity(1024),
         }
     }
 
+    /// Reads data until at least `len` bytes are available or until no more data can be received.
+    /// This uses a blocking call with a 10ms timeout instead of busy-waiting.
     fn read_inner(&mut self, len: usize) -> Vec<u8> {
-        tracing::debug!("Messages left: {}", self.inner.len());
+        tracing::debug!("Current buffer length: {}", self.buffer.len());
 
         while self.buffer.len() < len {
-            match self.inner.blocking_recv() {
-                Some(Some(data)) => {
-                    self.buffer.extend(data);
+            // Lock the receiver for each attempt to receive data.
+            let result = {
+                let rx = self.inner.lock().unwrap();
+                rx.recv_timeout(std::time::Duration::from_millis(1))
+            };
+            match result {
+                Ok(data) => self.buffer.extend(data),
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    if !self.buffer.is_empty() {
+                        break;
+                    }
                 }
-                Some(None) | None => {
-                    break;
-                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
             }
         }
-        let len = std::cmp::min(len, self.buffer.len());
-        self.buffer.drain(..len).collect()
+        let read_len = std::cmp::min(len, self.buffer.len());
+        self.buffer.drain(..read_len).collect()
     }
 }
 
@@ -105,14 +119,17 @@ impl std::io::Read for StreamMediaSource {
         let data = self.read_inner(buf.len());
         let len = std::cmp::min(buf.len(), data.len());
         buf[..len].copy_from_slice(&data[..len]);
-
         Ok(len)
     }
 }
 
 impl std::io::Seek for StreamMediaSource {
-    fn seek(&mut self, _pos: SeekFrom) -> std::io::Result<u64> {
-        unreachable!("StreamMediaSource does not support seeking")
+    fn seek(&mut self, _pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        // Return an error instead of panicking when a seek is attempted.
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "StreamMediaSource does not support seeking",
+        ))
     }
 }
 
@@ -122,7 +139,7 @@ mod tests {
 
     #[test]
     fn test_stream_media_source() {
-        let (tx, rx) = tokio::sync::mpsc::channel(10);
+        let (tx, rx) = std::sync::mpsc::channel();
 
         let mut source = super::StreamMediaSource::new(rx);
         drop(tx);
@@ -132,11 +149,11 @@ mod tests {
 
     #[test]
     fn test_stream_media_source_with_data() {
-        let (tx, rx) = tokio::sync::mpsc::channel(10);
+        let (tx, rx) = std::sync::mpsc::channel();
 
         let mut source = super::StreamMediaSource::new(rx);
 
-        tx.blocking_send(Some(vec![1, 2, 3, 4, 5])).unwrap();
+        tx.send(vec![1_u8, 2_u8, 3_u8, 4_u8, 5u8]).unwrap();
         drop(tx);
 
         let mut buffer = [0u8; 10];
@@ -146,14 +163,13 @@ mod tests {
 
     #[test]
     fn test_stream_media_source_with_data_larger_than_buffer() {
-        let (tx, rx) = tokio::sync::mpsc::channel(10);
+        let (tx, rx) = std::sync::mpsc::channel();
 
         let mut source = super::StreamMediaSource::new(rx);
 
-        tx.blocking_send(Some(vec![1, 2, 3, 4, 5, 6, 7])).unwrap();
-        tx.blocking_send(Some(vec![8, 9, 10])).unwrap();
-        tx.blocking_send(Some(vec![])).unwrap();
-        tx.blocking_send(None).unwrap();
+        tx.send(vec![1, 2, 3, 4, 5, 6, 7]).unwrap();
+        tx.send(vec![8, 9, 10]).unwrap();
+        tx.send(vec![]).unwrap();
         drop(tx);
 
         let mut buffer = [0u8; 5];

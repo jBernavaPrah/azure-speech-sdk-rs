@@ -24,9 +24,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Create your specific SSML here.
 
     // Check the (SSML documentation)[https://github.com/pykeio/ssml] for more information.
-    let ssml = synthesizer::ssml::speak(
+    let ssml = synthesizer::ssml::ssml::speak(
         Some("en-GB").into(),
-        [synthesizer::ssml::Voice::new(
+        [synthesizer::ssml::ssml::Voice::new(
             "en-GB-LibbyNeural",
             ["hello world"],
         )],

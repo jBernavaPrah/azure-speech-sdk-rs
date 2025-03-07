@@ -54,7 +54,7 @@ pub(crate) fn create_synthesis_context_message(request_id: String, config: &Conf
                         "visemeEnabled": config.viseme_enabled,
                         "wordBoundaryEnabled": config.word_boundary_enabled
                     },
-                    "outputFormat": config.output_format.as_str()
+                    "outputFormat": config.audio_format.as_str()
                 },
                 "language": {"autoDetection": config.auto_detect_language}
             }})

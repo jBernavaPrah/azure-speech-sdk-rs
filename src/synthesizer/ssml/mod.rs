@@ -1,8 +1,7 @@
-mod speak;
-
 use std::fmt::Debug;
 
-pub use ssml::*;
+pub use ssml;
+use ssml::{Serialize, SerializeOptions};
 
 /// Trait to convert a type to SSML
 ///
@@ -71,7 +70,7 @@ impl ToSSML for &str {
     }
 }
 
-impl ToSSML for speak::Speak {
+impl ToSSML for Speak {
     fn to_ssml(
         &self,
         language: crate::synthesizer::Language,
@@ -87,7 +86,7 @@ impl ToSSML for speak::Speak {
     }
 }
 
-impl ToSSML for Speak {
+impl ToSSML for ssml::Speak {
     fn to_ssml(
         &self,
         _language: crate::synthesizer::Language,
@@ -104,4 +103,37 @@ fn serialize_to_ssml(speak: &impl Serialize) -> crate::Result<String> {
                 .flavor(ssml::Flavor::MicrosoftAzureCognitiveSpeechServices),
         )
         .map_err(|e| crate::Error::InternalError(e.to_string()))
+}
+
+
+
+// Easy to use struct to create SSML speak elements.
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
+pub struct Speak {
+    pub(crate) text: String,
+    pub(crate) voice: Option<crate::synthesizer::Voice>,
+    pub(crate) language: Option<crate::synthesizer::Language>,
+}
+
+impl Speak {
+    #[allow(dead_code)]
+    pub fn new(text: String) -> Self {
+        Self {
+            text,
+            voice: None,
+            language: None,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn with_voice(mut self, voice: crate::synthesizer::Voice) -> Self {
+        self.voice = Some(voice);
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn with_language(mut self, language: crate::synthesizer::Language) -> Self {
+        self.language = Some(language);
+        self
+    }
 }

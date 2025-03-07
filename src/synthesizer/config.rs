@@ -3,7 +3,7 @@ use crate::synthesizer::{AudioFormat, Language, Voice};
 
 #[derive(Clone, Default, Debug)]
 pub struct Config {
-    pub(crate) output_format: AudioFormat,
+    pub(crate) audio_format: AudioFormat,
 
     pub(crate) device: Device,
 
@@ -39,8 +39,8 @@ impl Config {
         self
     }
 
-    pub fn with_output_format(mut self, output_format: AudioFormat) -> Self {
-        self.output_format = output_format;
+    pub fn with_audio_format(mut self, output_format: AudioFormat) -> Self {
+        self.audio_format = output_format;
         self
     }
 

@@ -22,16 +22,20 @@ pub struct Text {
 #[serde(tag = "Type", content = "Data")]
 pub enum Metadata {
     WordBoundary {
+        /// Specifies the audio offset, in ticks (100 nanoseconds).
         #[serde(rename = "Offset")]
         offset: i64,
+        /// Specifies the duration, in ticks (100 nanoseconds).
         #[serde(rename = "Duration")]
         duration: i64,
         #[serde(rename = "text")]
         text: Text,
     },
     SentenceBoundary {
+        /// Specifies the audio offset, in ticks (100 nanoseconds).
         #[serde(rename = "Offset")]
         offset: i64,
+        /// Specifies the duration, in ticks (100 nanoseconds).
         #[serde(rename = "Duration")]
         duration: i64,
         text: Text,
@@ -45,6 +49,7 @@ pub enum Metadata {
         is_last_animation: bool,
     },
     SessionEnd {
+        /// Specifies the audio offset, in ticks (100 nanoseconds).
         #[serde(rename = "Offset")]
         offset: i64,
     },

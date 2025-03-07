@@ -53,6 +53,10 @@ impl Client {
 }
 
 impl Client {
+   
+    /// Synthesize the given text or ssml::Speak.
+    /// 
+    /// The function will return a stream of `synthesizer::event::Event`.
     pub async fn synthesize(
         &self,
         text: impl ToSSML,

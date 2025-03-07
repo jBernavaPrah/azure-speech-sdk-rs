@@ -40,7 +40,7 @@ mod client;
 mod config;
 mod event;
 mod language;
-mod message;
+pub mod message;
 mod session;
 mod utils;
 mod voice;
