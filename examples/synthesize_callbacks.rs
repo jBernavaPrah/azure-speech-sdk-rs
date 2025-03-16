@@ -4,9 +4,10 @@ use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
+    if env::var_os("RUST_LOG").is_none() {
+        env::set_var("RUST_LOG", "INFO");
+    }
+    tracing_subscriber::fmt::init();
 
     // Check the examples/synthesize_simple.rs file for the full code.
 

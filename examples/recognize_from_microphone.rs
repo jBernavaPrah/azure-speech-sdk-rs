@@ -1,4 +1,5 @@
 use azure_speech::recognizer;
+use azure_speech::recognizer::AudioDevice;
 use azure_speech::Auth;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::SampleFormat as CPALSampleFormat;
@@ -9,9 +10,10 @@ use tokio_stream::{Stream, StreamExt};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
+    if env::var_os("RUST_LOG").is_none() {
+        env::set_var("RUST_LOG", "INFO");
+    }
+    tracing_subscriber::fmt::init();
 
     // More information on the configuration can be found in the examples/recognize_simple.rs example.
 
@@ -29,7 +31,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Using this utility, I'm creating an audio stream from the default input device.
     // The audio headers are sent first, then the audio data.
     // As the audio is raw, the WAV format is used.
-    let (stream, header, microphone) = listen_from_default_input().await;
+    let (stream, audio_format, microphone) = listen_from_default_input().await;
 
     // Start the microphone.
     microphone.play().expect("play failed");
@@ -37,8 +39,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut events = client
         .recognize(
             stream,
-            recognizer::ContentType::Raw(header.into_header_for_infinite_file()), // filling the wav header from the listener
-            recognizer::Details::stream("mac", "stream"),
+            audio_format, // filling the wav header from the listener
+            AudioDevice::stream(),
         )
         .await
         .expect("to recognize");
@@ -60,8 +62,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 // This utility function creates a stream from the default input device.
 // The audio headers are sent first, then the audio data.
-async fn listen_from_default_input() -> (impl Stream<Item = Vec<u8>>, hound::WavSpec, cpal::Stream)
-{
+async fn listen_from_default_input() -> (
+    impl Stream<Item = Vec<u8>>,
+    recognizer::AudioFormat,
+    cpal::Stream,
+) {
     let host = cpal::default_host();
     let device = host
         .default_input_device()
@@ -173,14 +178,11 @@ async fn listen_from_default_input() -> (impl Stream<Item = Vec<u8>>, hound::Wav
 
     (
         ReceiverStream::new(rx),
-        hound::WavSpec {
-            sample_rate: device_config.sample_rate().0,
-            channels: device_config.channels(),
+        recognizer::AudioFormat::Wav {
+            wav_type: recognizer::WavType::Pcm,
             bits_per_sample: (device_config.sample_format().sample_size() * 8) as u16,
-            sample_format: match device_config.sample_format().is_float() {
-                true => hound::SampleFormat::Float,
-                false => hound::SampleFormat::Int,
-            },
+            channels: device_config.channels(),
+            sample_rate: device_config.sample_rate().0,
         },
         stream,
     )

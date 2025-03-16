@@ -1,18 +1,15 @@
 use azure_speech::recognizer;
-use azure_speech::stream::{Stream, StreamExt};
+use azure_speech::stream::StreamExt;
 use azure_speech::Auth;
 use std::env;
 use std::error::Error;
-use std::path::Path;
-use tokio::fs::File;
-use tokio::io::{AsyncReadExt, BufReader};
-use tokio_stream::wrappers::ReceiverStream;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
+    if env::var_os("RUST_LOG").is_none() {
+        env::set_var("RUST_LOG", "INFO");
+    }
+    tracing_subscriber::fmt::init();
 
     // Add your Azure region and subscription key to the environment variables.
     // In this version only the default subscription key is supported.
@@ -36,18 +33,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Here we are streaming the events from the synthesizer.
     // But you can also use the callbacks (see: examples/recognize_callbacks.rs) if you prefer.
     let mut stream = client
-        .recognize(
-            // Here is your input audio stream. The audio headers needs to be present if required by the content type used.
-            // In this example, the content type is Wav, so the headers are required at the start of the file.
-            // Generally you read a file, the headers are already present.
-            // If you are creating a stream from a microphone, you need to add the headers.
-            // Check the relative example for more details.
-            create_audio_stream("tests/audios/examples_sample_files_turn_on_the_lamp.wav").await, // Try also the mp3 version of the file.
-            // Here is the content type of the audio stream.
-            recognizer::ContentType::Wav, // The headers are empty because they are already present in the file.
-            // The typology of the source. You can use unknown, file or stream.
-            // More information can be requested by the method.
-            recognizer::Details::file(),
+        // Here is your input audio stream. The audio headers needs to be present if required by the content type used.
+        // In this example, the content type is Wav, so the headers are required at the start of the file.
+        // Generally you read a file, the headers are already present.
+        // If you are creating a stream from a microphone, you need to add the headers.
+        // Check the relative example for more details.
+        .recognize_file(
+            "tests/audios/examples_sample_files_turn_on_the_lamp.wav", // Try also the mp3 version of the file.
         )
         .await
         .expect("to recognize");
@@ -90,26 +82,4 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tracing::info!("Completed!");
 
     Ok(())
-}
-
-async fn create_audio_stream(path: impl AsRef<Path>) -> impl Stream<Item = Vec<u8>> {
-    let (tx, rx) = tokio::sync::mpsc::channel(1024);
-    let file = File::open(path).await.expect("Failed to open file");
-    let mut reader = BufReader::new(file);
-
-    tokio::spawn(async move {
-        let mut chunk = vec![0; 4096];
-        while let Ok(n) = reader.read(&mut chunk).await {
-            if n == 0 {
-                break;
-            }
-            if tx.send(chunk.clone()).await.is_err() {
-                tracing::error!("Error sending data");
-                break;
-            }
-        }
-        drop(tx);
-    });
-
-    ReceiverStream::new(rx)
 }

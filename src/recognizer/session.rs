@@ -39,12 +39,14 @@ impl Session {
         // todo: update telemetry..
     }
 
+    #[allow(dead_code)]
     pub(crate) fn on_phrase_recognized(&self, offset: Offset) {
         let mut inner = self.inner.lock().unwrap();
         inner.recognition_offset += offset;
         inner.hypothesis_received = false;
     }
 
+    #[allow(dead_code)]
     pub(crate) fn is_audio_completed(&self) -> bool {
         self.inner.lock().unwrap().is_audio_completed
     }

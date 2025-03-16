@@ -101,8 +101,8 @@ async fn integration_test_reconnect() {
     let events = recognizer
         .recognize(
             tokio_stream::iter(vec![]),
-            recognizer::ContentType::Mp3,
-            recognizer::Details::unknown(),
+            recognizer::AudioFormat::Mp3,
+            recognizer::AudioDevice::unknown(),
         )
         .await
         .unwrap();
@@ -114,8 +114,8 @@ async fn integration_test_reconnect() {
     let events = recognizer
         .recognize(
             tokio_stream::iter(vec![]),
-            recognizer::ContentType::Mp3,
-            recognizer::Details::unknown(),
+            recognizer::AudioFormat::Mp3,
+            recognizer::AudioDevice::unknown(),
         )
         .await
         .unwrap();
@@ -126,8 +126,8 @@ async fn integration_test_reconnect() {
     let events = recognizer
         .recognize(
             tokio_stream::iter(vec![]),
-            recognizer::ContentType::Mp3,
-            recognizer::Details::unknown(),
+            recognizer::AudioFormat::Mp3,
+            recognizer::AudioDevice::unknown(),
         )
         .await
         .unwrap();
@@ -270,8 +270,8 @@ async fn integration_test_recognizer() {
     let events = recognizer
         .recognize(
             tokio_stream::iter(vec![]),
-            recognizer::ContentType::Mp3,
-            recognizer::Details::unknown(),
+            recognizer::AudioFormat::Mp3,
+            recognizer::AudioDevice::unknown(),
         )
         .await
         .unwrap();

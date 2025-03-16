@@ -5,9 +5,10 @@ use tokio_stream::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
+    if env::var_os("RUST_LOG").is_none() {
+        env::set_var("RUST_LOG", "INFO");
+    }
+    tracing_subscriber::fmt::init();
 
     // Add your Azure region and subscription key to the environment variables
     let auth = Auth::from_subscription(

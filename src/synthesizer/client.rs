@@ -38,10 +38,12 @@ impl Client {
                     "Ocp-Apim-Subscription-Key".try_into().unwrap(),
                     (&auth.subscription).try_into().unwrap(),
                 )
+                .unwrap()
                 .add_header(
                     "X-ConnectionId".try_into().unwrap(),
                     uuid::Uuid::new_v4().to_string().try_into().unwrap(),
-                ),
+                )
+                .unwrap(),
         )
         .await?;
         Ok(Self::new(client, config))

@@ -4,9 +4,10 @@ use tokio_stream::{Stream, StreamExt};
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
+    if env::var_os("RUST_LOG").is_none() {
+        env::set_var("RUST_LOG", "INFO");
+    }
+    tracing_subscriber::fmt::init();
 
     let auth = Auth::from_subscription(
         env::var("AZURE_REGION").expect("Region set on AZURE_REGION env"),
@@ -27,8 +28,8 @@ async fn main() {
             // The BBC World Service stream is a good example to test the recognizer.
             create_audio_stream("https://stream.live.vc.bbcmedia.co.uk/bbc_world_service").await,
             // The content type is MPEG.
-            recognizer::ContentType::Mpeg,
-            recognizer::Details::stream("unknown", "stream"),
+            recognizer::AudioFormat::Mpeg,
+            recognizer::AudioDevice::stream(),
         )
         .await
         .expect("Failed to recognize");

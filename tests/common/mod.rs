@@ -14,7 +14,7 @@ where
 
     tokio::spawn(async move {
         while let Ok((s, _)) = listener.accept().await {
-            let ws_stream = ServerBuilder::new().accept(s).await?;
+            let (_, ws_stream) = ServerBuilder::new().accept(s).await?;
             let next = connections_to_test
                 .pop_front()
                 .expect("Unexpected connection!");

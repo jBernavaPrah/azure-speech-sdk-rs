@@ -10,9 +10,10 @@ use tokio_stream::wrappers::ReceiverStream;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
+    if env::var_os("RUST_LOG").is_none() {
+        env::set_var("RUST_LOG", "INFO");
+    }
+    tracing_subscriber::fmt::init();
 
     // Check on the example recognize_simple.rs for more details on how to set the recognizer.
     let auth = Auth::from_subscription(
@@ -40,11 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //.on_... // check the other callbacks available.
 
     client
-        .recognize(
-            create_audio_stream("tests/audios/examples_sample_files_turn_on_the_lamp.wav").await, // Try also the mp3 version of the file.
-            recognizer::ContentType::Wav,
-            recognizer::Details::file(),
-        )
+        .recognize_file("tests/audios/examples_sample_files_turn_on_the_lamp.wav")
         .await
         .expect("to recognize")
         // When you set the callbacks, the events will be sent to the callbacks and not to the stream.

@@ -1,5 +1,5 @@
 use crate::recognizer::config::Config;
-use crate::recognizer::{ContentType, Details};
+use crate::recognizer::{AudioDevice, AudioFormat};
 use crate::{make_binary_payload, make_text_payload};
 use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -8,7 +8,7 @@ use tokio_websockets::Message;
 pub(crate) fn create_speech_config_message(
     request_id: String,
     config: &Config,
-    details: &Details,
+    audio_device: &AudioDevice,
 ) -> Message {
     Message::text(make_text_payload(
         vec![
@@ -31,10 +31,10 @@ pub(crate) fn create_speech_config_message(
                     "os": config.device.os,
                     "audio": {
                         "source": {
-                            "connectivity": details.connectivity,
-                            "manufacturer": details.manufacturer,
-                            "model": details.model,
-                            "type": details.name,
+                            "connectivity": audio_device.connectivity,
+                            "manufacturer": audio_device.manufacturer,
+                            "model": audio_device.model,
+                            "type": audio_device.name,
                             //"samplerate": spec.sample_rate,
                             //"bitspersample": spec.bits_per_sample,
                             //"channelcount": spec.channels,
@@ -135,7 +135,7 @@ pub(crate) fn create_speech_context_message(request_id: String, config: &Config)
 
 pub(crate) fn create_audio_header_message(
     request_id: String,
-    content_type: ContentType,
+    content_type: AudioFormat,
 ) -> Message {
     let mut headers = vec![
         ("Path".to_string(), "audio".to_string()),
@@ -152,7 +152,7 @@ pub(crate) fn create_audio_header_message(
 
     headers.push((
         "Content-Type".to_string(),
-        content_type.as_str().to_string(),
+        content_type.as_content_type().to_string(),
     ));
 
     Message::binary(make_binary_payload(

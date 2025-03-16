@@ -39,7 +39,7 @@ impl ToSSML for &String {
     ) -> crate::Result<String> {
         serialize_to_ssml(&ssml::speak(
             Some(language.as_str()),
-            [ssml::voice(voice.as_str(), [self])],
+            [ssml::voice(voice.as_str(), [self.as_str()])],
         ))
     }
 }
@@ -86,7 +86,7 @@ impl ToSSML for Speak {
     }
 }
 
-impl ToSSML for ssml::Speak {
+impl ToSSML for ssml::Speak<'_> {
     fn to_ssml(
         &self,
         _language: crate::synthesizer::Language,

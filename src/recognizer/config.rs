@@ -229,52 +229,107 @@ pub enum LanguageDetectMode {
     AtStart,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, Serialize)]
 /// Details of the source.
 ///
 /// This is used to provide information about the source.
-pub struct Details {
-    /// Name of the source, e.g. "Microphone", "Stream", "File"
-    pub name: String,
-    /// Model of the source, e.g. "Stream", "File"
-    pub model: String,
-    /// Manufacturer of the source, e.g. "Unknown"
-    pub connectivity: String,
-    /// Connectivity of the source, e.g. "Unknown"
-    pub manufacturer: String,
+pub struct AudioDevice {
+    /// Name of the Audio Device
+    pub(crate) name: String,
+    /// Model of the Audio Device
+    pub(crate) model: String,
+    /// Manufacturer of the Audio Device
+    pub(crate) manufacturer: String,
+    /// Type of the Audio Device
+    #[serde(rename = "type")]
+    pub(crate) source: SourceType,
+    /// Connectivity of the Audio Device
+    pub(crate) connectivity: ConnectionType,
 }
 
-impl Details {
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+pub enum ConnectionType {
+    Bluetooth,
+    Wired,
+    WiFi,
+    Cellular,
+    InBuilt,
+    #[default]
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+pub enum SourceType {
+    Phone,
+    Speaker,
+    Car,
+    Headset,
+    Thermostat,
+    Microphones,
+    Deskphone,
+    RemoteControl,
+    #[default]
+    Unknown,
+    File,
+    Stream,
+}
+
+impl AudioDevice {
     /// Create a new Details instance
-    pub fn new(
-        name: impl Into<String>,
-        model: impl Into<String>,
-        manufacturer: impl Into<String>,
-        connectivity: impl Into<String>,
-    ) -> Self {
-        Details {
-            name: name.into(),
-            model: model.into(),
-            manufacturer: manufacturer.into(),
-            connectivity: connectivity.into(),
+    pub fn new(source: SourceType) -> Self {
+        AudioDevice {
+            source,
+            ..Default::default()
         }
+    }
+
+    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
+        self
+    }
+
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.model = model.into();
+        self
+    }
+
+    pub fn with_manufacturer(mut self, manufacturer: impl Into<String>) -> Self {
+        self.manufacturer = manufacturer.into();
+        self
+    }
+
+    pub fn with_connectivity(mut self, connectivity: ConnectionType) -> Self {
+        self.connectivity = connectivity;
+        self
+    }
+
+    pub fn with_source(mut self, source: SourceType) -> Self {
+        self.source = source;
+        self
     }
 
     #[allow(missing_docs)]
     pub fn unknown() -> Self {
-        Details::new("Unknown", "Unknown", "Unknown", "Unknown")
+        AudioDevice::new(SourceType::Unknown)
     }
 
     #[allow(missing_docs)]
-    pub fn stream(manufacture: impl Into<String>, connectivity: impl Into<String>) -> Self {
-        Details::new("Stream", "Stream", manufacture, connectivity)
+    pub fn stream() -> Self {
+        AudioDevice::new(SourceType::Stream)
     }
     #[allow(missing_docs)]
-    pub fn microphone(manufacture: impl Into<String>, connectivity: impl Into<String>) -> Self {
-        Details::new("Microphone", "Stream", manufacture, connectivity)
+    pub fn microphone(
+        name: impl Into<String>,
+        manufacture: impl Into<String>,
+        connectivity: ConnectionType,
+    ) -> Self {
+        AudioDevice::new(SourceType::Microphones)
+            .with_connectivity(connectivity)
+            .with_manufacturer(manufacture)
+            .with_name(name)
     }
     #[allow(missing_docs)]
     pub fn file() -> Self {
-        Details::new("File", "File", "Unknown", "Unknown")
+        AudioDevice::new(SourceType::File)
     }
 }
