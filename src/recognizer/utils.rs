@@ -136,6 +136,7 @@ pub(crate) fn create_speech_context_message(request_id: String, config: &Config)
 pub(crate) fn create_audio_header_message(
     request_id: String,
     content_type: AudioFormat,
+    audio_header: Option<&[u8]>,
 ) -> Message {
     let mut headers = vec![
         ("Path".to_string(), "audio".to_string()),
@@ -157,7 +158,7 @@ pub(crate) fn create_audio_header_message(
 
     Message::binary(make_binary_payload(
         headers,
-        content_type.as_header().as_deref(),
+        audio_header,
     ))
 }
 

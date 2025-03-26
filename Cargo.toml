@@ -61,6 +61,7 @@ tokio = { version = "1.36.0", features = ["full"] }
 
 rodio = { version = "0.20.1", features = ["symphonia", "symphonia-wav", "symphonia-mp3"], default-features = false }
 cpal = "0.15.3"
+hound = "3.5.1"
 
 reqwest = { version = "0.12", features = ["stream"] }
 tracing = "0.1.40"

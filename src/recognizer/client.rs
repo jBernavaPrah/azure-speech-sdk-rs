@@ -11,13 +11,10 @@ use crate::recognizer::{
 use crate::utils::get_azure_hostname_from_region;
 use crate::{stream_ext::StreamExt, Auth, Data, Message};
 use std::cmp::min;
-use std::ffi::OsStr;
-use std::path::PathBuf;
-use tokio::fs::File;
-use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
-use tokio::select;
+use tokio::io::AsyncReadExt;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::{Stream, StreamExt as _};
+use tracing::warn;
 use url::Url;
 
 const BUFFER_SIZE: usize = 4096;
@@ -85,19 +82,44 @@ impl Client {
 
     pub async fn recognize_file(
         &self,
-        path: impl Into<PathBuf>,
+        path: impl Into<std::path::PathBuf>,
     ) -> crate::Result<impl Stream<Item = crate::Result<Event>>> {
         let path = path.into();
-        let file = File::open(&path).await?;
-        let reader = BufReader::new(file);
+        let file = tokio::fs::File::open(&path).await?;
         let ext = path
             .extension()
             .ok_or_else(|| crate::Error::IOError("Missing file extension.".to_string()))?;
-        let (audio_stream, audio_format) = create_audio_stream_from_reader(reader, ext).await?;
-        self.recognize(audio_stream, audio_format, AudioDevice::file())
-            .await
-    }
 
+        let (tx, rx) = tokio::sync::mpsc::channel(1024);
+
+        tokio::spawn(async move {
+            let mut reader = tokio::io::BufReader::new(file);
+            loop {
+                let mut chunk = vec![0; BUFFER_SIZE];
+                match reader.read(&mut chunk).await {
+                    Ok(n) if n == 0 => break,
+                    Ok(n) => {
+                        chunk.truncate(n);
+                        if let Err(e) = tx.send(chunk).await {
+                            warn!("Failed to send chunk: {}", e);
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to read chunk: {}", e);
+                        break;
+                    }
+                }
+            }
+        });
+
+        self.recognize(
+            ReceiverStream::new(rx),
+            ext.try_into()?,
+            AudioDevice::file(),
+        )
+        .await
+    }
     pub async fn recognize<A>(
         &self,
         mut audio: A,
@@ -105,15 +127,15 @@ impl Client {
         audio_device: AudioDevice,
     ) -> crate::Result<impl Stream<Item = crate::Result<Event>>>
     where
-        A: Stream<Item = Vec<u8>> + Send + Unpin + 'static,
+        A: Stream<Item = Vec<u8>> + Sync + Send + Unpin + 'static,
     {
         let messages = self.client.stream().await?;
         let session = Session::new();
         let config = self.config.clone();
         let client = self.client.clone();
-        let (restart_sender, mut restart_rx) = tokio::sync::mpsc::channel(1);
+        let (restart_tx, mut restart_rx) = tokio::sync::mpsc::channel(1);
 
-        // Send initial configuration
+        // Send the initial speech configuration.
         client
             .send(create_speech_config_message(
                 session.request_id().to_string(),
@@ -122,76 +144,89 @@ impl Client {
             ))
             .await?;
 
-        // Spawn a task to send audio messages.
-        tokio::spawn({
-            let client = client.clone();
-            let audio_format = audio_format.clone();
-            let session = session.clone();
-            async move {
-                // Send context and header messages.
-                if client
-                    .send(create_speech_context_message(
-                        session.request_id().to_string(),
-                        &config,
-                    ))
-                    .await
-                    .is_err()
-                {
-                    return;
-                }
-                if client
-                    .send(create_audio_header_message(
-                        session.request_id().to_string(),
-                        audio_format.clone(),
-                    ))
-                    .await
-                    .is_err()
-                {
-                    return;
-                }
+        // Send the initial context and audio header messages.
+        client
+            .send(create_speech_context_message(
+                session.request_id().to_string(),
+                &config,
+            ))
+            .await?;
 
-                let mut buffer = Vec::with_capacity(BUFFER_SIZE);
-                loop {
-                    select! {
-                        _ = restart_rx.recv() => {
-                            session.refresh();
+        // For WAV audio, extract the header and extra data.
+        let (audio_header, extra) = match audio_format {
+            AudioFormat::Wav => {
+                let (header, extra) = extract_header_from_wav(&mut audio).await?;
+                (Some(header), extra)
+            }
+            _ => (None, vec![]),
+        };
+
+        // Create the audio data buffer and seed it with any extra bytes.
+        let mut buffer = Vec::with_capacity(BUFFER_SIZE);
+        buffer.extend(extra);
+
+        client
+            .send(create_audio_header_message(
+                session.request_id().to_string(),
+                audio_format.clone(),
+                audio_header.as_deref(),
+            ))
+            .await?;
+
+        let _session = session.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    // Handle any restart signal.
+                    _ = restart_rx.recv() => {
+                        tracing::info!("Refreshing audio header");
+                        _session.refresh();
+
+                        if client.send(create_audio_header_message(
+                            _session.request_id().to_string(),
+                            audio_format.clone(),
+                            audio_header.as_deref(),
+                        )).await.is_err() {
+                            warn!("Failed to refresh audio header");
                             break;
                         }
-                        maybe_chunk = audio.next() => {
-                            match maybe_chunk {
-                                Some(chunk) => {
-                                    buffer.extend(chunk);
-                                    while buffer.len() >= BUFFER_SIZE {
-                                        let data: Vec<u8> = buffer.drain(..BUFFER_SIZE).collect();
-                                        if client.send(create_audio_message(session.request_id().to_string(), Some(&data))).await.is_err() {
-                                            return;
-                                        }
+                    },
+                    // Process the next chunk from the audio stream.
+                    maybe_chunk = audio.next() => {
+                        match maybe_chunk {
+                            Some(chunk) => {
+                                // Append the new data to the buffer.
+                                buffer.extend(chunk);
+                                // While there is enough data, send it in fixed-size chunks.
+                                while buffer.len() >= BUFFER_SIZE {
+                                    let data: Vec<u8> = buffer.drain(..BUFFER_SIZE).collect();
+                                    if client.send(create_audio_message(_session.request_id().to_string(), Some(&data))).await.is_err() {
+                                        warn!("Failed to send audio message");
+                                        break;
                                     }
                                 }
-                                None => break,
+                            }
+                            None => {
+                                // No more audio: flush remaining bytes in the buffer.
+                                while !buffer.is_empty() {
+                                    let data: Vec<u8> = buffer.drain(..min(buffer.len(), BUFFER_SIZE)).collect();
+                                    if client.send(create_audio_message(_session.request_id().to_string(), Some(&data))).await.is_err() {
+                                        warn!("Failed to send final audio chunk");
+                                        break;
+                                    }
+                                }
+                                // Signal the end of audio.
+                                let _ = client.send(create_audio_message(_session.request_id().to_string(), None)).await;
+                                _session.set_audio_completed(true);
+                                break;
                             }
                         }
                     }
                 }
-
-                // Flush any remaining data.
-                while !buffer.is_empty() {
-                    let data: Vec<u8> = buffer.drain(..min(buffer.len(), BUFFER_SIZE)).collect();
-                    let _ = client
-                        .send(create_audio_message(
-                            session.request_id().to_string(),
-                            Some(&data),
-                        ))
-                        .await;
-                }
-                // Signal end of audio stream.
-                let _ = client
-                    .send(create_audio_message(session.request_id().to_string(), None))
-                    .await;
-                session.set_audio_completed(true);
             }
         });
 
+        // Build the output stream that filters and converts messages into events.
         let session_clone = session.clone();
         let output_stream = messages
             .filter(move |msg| match msg {
@@ -200,16 +235,14 @@ impl Client {
             })
             .filter_map(move |msg| {
                 let session_ref = session_clone.clone();
-                {
-                    match msg {
-                        Ok(m) => convert_message_to_event(m, &session_ref),
-                        Err(e) => Some(Err(e)),
-                    }
+                match msg {
+                    Ok(m) => convert_message_to_event(m, &session_ref),
+                    Err(e) => Some(Err(e)),
                 }
             })
             .map(move |event| {
                 if let Ok(Event::SessionEnded(_)) = event {
-                    let _ = restart_sender.try_send(());
+                    let _ = restart_tx.try_send(());
                 }
                 event
             })
@@ -306,24 +339,40 @@ fn convert_message_to_event(message: Message, session: &Session) -> Option<crate
     }
 }
 
-async fn create_audio_stream_from_reader(
-    mut reader: impl AsyncRead + Unpin + Send + Sync + 'static,
-    extension: &OsStr,
-) -> Result<(impl Stream<Item = Vec<u8>>, AudioFormat), crate::Error> {
-    let (tx, rx) = tokio::sync::mpsc::channel(1024);
-    let audio_format = AudioFormat::try_from_reader(&mut reader, extension).await?;
+async fn extract_header_from_wav(
+    reader: &mut (impl Stream<Item = Vec<u8>> + Unpin + Send + Sync + 'static),
+) -> Result<(Vec<u8>, Vec<u8>), crate::Error> {
+    let mut header = Vec::new();
 
-    tokio::spawn(async move {
-        let mut buf = vec![0; BUFFER_SIZE];
-        while let Ok(n) = reader.read(&mut buf).await {
-            if n == 0 {
-                break;
-            }
-            if tx.send(buf[..n].to_vec()).await.is_err() {
-                break;
-            }
+    // Loop until the stream is exhausted.
+    while let Some(chunk) = reader.next().await {
+        header.extend(chunk);
+
+        // We need at least 12 bytes to check the RIFF and WAVE identifiers.
+        if header.len() < 12 {
+            continue;
         }
-    });
 
-    Ok((ReceiverStream::new(rx), audio_format))
+        // Check for a valid WAV header: bytes 0..4 must be "RIFF" and 8..12 must be "WAVE".
+        if &header[0..4] != b"RIFF" || &header[8..12] != b"WAVE" {
+            return Err(crate::Error::ParseError("Invalid wav header".to_string()));
+        }
+
+        // Look for the "data" descriptor.
+        if let Some(pos) = header.windows(4).position(|w| w == b"data") {
+            // Ensure we have read the 4 bytes following "data" (i.e. the length field).
+            if header.len() < pos + 8 {
+                // Not enough bytes yet; continue reading.
+                continue;
+            }
+            // Split the header at the end of the "data" chunk descriptor and its length field.
+            let header_end = pos + 8;
+            let remainder = header.split_off(header_end);
+            return Ok((header, remainder));
+        }
+    }
+
+    Err(crate::Error::ParseError(
+        "Reached end of stream without finding 'data' chunk".to_string(),
+    ))
 }

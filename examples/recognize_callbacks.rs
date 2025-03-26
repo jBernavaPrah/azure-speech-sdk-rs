@@ -52,25 +52,3 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-
-async fn create_audio_stream(path: impl AsRef<Path>) -> impl Stream<Item = Vec<u8>> {
-    let (tx, rx) = tokio::sync::mpsc::channel(1024);
-    let file = File::open(path).await.expect("Failed to open file");
-    let mut reader = BufReader::new(file);
-
-    tokio::spawn(async move {
-        let mut chunk = vec![0; 4096];
-        while let Ok(n) = reader.read(&mut chunk).await {
-            if n == 0 {
-                break;
-            }
-            if tx.send(chunk.clone()).await.is_err() {
-                tracing::error!("Error sending data");
-                break;
-            }
-        }
-        drop(tx);
-    });
-
-    ReceiverStream::new(rx)
-}
