@@ -97,7 +97,7 @@ impl Client {
             loop {
                 let mut chunk = vec![0; BUFFER_SIZE];
                 match reader.read(&mut chunk).await {
-                    Ok(n) if n == 0 => break,
+                    Ok(0) => break,
                     Ok(n) => {
                         chunk.truncate(n);
                         if let Err(e) = tx.send(chunk).await {

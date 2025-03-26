@@ -1,12 +1,7 @@
-use azure_speech::stream::Stream;
 use azure_speech::Auth;
 use azure_speech::{recognizer, StreamExt};
 use std::env;
 use std::error::Error;
-use std::path::Path;
-use tokio::fs::File;
-use tokio::io::{AsyncReadExt, BufReader};
-use tokio_stream::wrappers::ReceiverStream;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

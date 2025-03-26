@@ -32,8 +32,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // The audio headers are sent first, then the audio data.
     // As the audio is raw, the WAV format is used.
     let (stream, microphone) = listen_from_default_input().await;
-    
-    
+
     // Start the microphone.
     microphone.play().expect("play failed");
 
@@ -63,10 +62,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 // This utility function creates a stream from the default input device.
 // The audio headers are sent first, then the audio data.
-async fn listen_from_default_input() -> (
-    impl Stream<Item = Vec<u8>>,
-    cpal::Stream,
-) {
+async fn listen_from_default_input() -> (impl Stream<Item = Vec<u8>>, cpal::Stream) {
     let host = cpal::default_host();
     let device = host
         .default_input_device()
@@ -74,25 +70,28 @@ async fn listen_from_default_input() -> (
     let device_config = device
         .default_input_config()
         .expect("Failed to get default input config");
-    
+
     tracing::info!("Using input device: {:?}", device.name());
     tracing::info!("Default input config: {:?}", device_config);
 
     let (tx, rx) = tokio::sync::mpsc::channel(1024);
 
-    tx.send(hound::WavSpec {
-        sample_rate: device_config.sample_rate().0,
-        channels: device_config.channels(),
-        bits_per_sample: (device_config.sample_format().sample_size() * 8) as u16,
-        sample_format: match device_config.sample_format().is_float() {
-            true => hound::SampleFormat::Float,
-            false => hound::SampleFormat::Int,
-        },
-    }.into_header_for_infinite_file()).await.expect("Failed to send wav header");
-
+    tx.send(
+        hound::WavSpec {
+            sample_rate: device_config.sample_rate().0,
+            channels: device_config.channels(),
+            bits_per_sample: (device_config.sample_format().sample_size() * 8) as u16,
+            sample_format: match device_config.sample_format().is_float() {
+                true => hound::SampleFormat::Float,
+                false => hound::SampleFormat::Int,
+            },
+        }
+        .into_header_for_infinite_file(),
+    )
+    .await
+    .expect("Failed to send wav header");
 
     let config = device_config.clone().into();
-    
 
     let err = |err| tracing::error!("Trying to stream input: {err}");
 
@@ -190,8 +189,5 @@ async fn listen_from_default_input() -> (
         _ => panic!("Unsupported sample format"),
     }
     .expect("Failed to build input stream");
-    (
-        ReceiverStream::new(rx),
-        stream,
-    )
+    (ReceiverStream::new(rx), stream)
 }

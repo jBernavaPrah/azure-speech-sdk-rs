@@ -3,8 +3,8 @@ use std::ffi::OsStr;
 /// The Audio Format of the audio data.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AudioFormat {
-    /// The audio is in WAV format. 
-    /// 
+    /// The audio is in WAV format.
+    ///
     /// Header needs to be present in the beginning of the audio data.
     Wav,
     /// The audio is in FLAC format.

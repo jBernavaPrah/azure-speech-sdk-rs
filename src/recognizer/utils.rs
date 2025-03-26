@@ -156,10 +156,7 @@ pub(crate) fn create_audio_header_message(
         content_type.as_content_type().to_string(),
     ));
 
-    Message::binary(make_binary_payload(
-        headers,
-        audio_header,
-    ))
+    Message::binary(make_binary_payload(headers, audio_header))
 }
 
 pub(crate) fn create_audio_message(request_id: String, data: Option<&[u8]>) -> Message {
