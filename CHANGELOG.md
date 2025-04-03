@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.7.0...v0.8.0) - 2025-04-03
+
+### Added
+
+- Refactor audio format handling and improve WAV support for the recognize service.
+
+### Other
+
+- *(deps)* bump ring from 0.17.8 to 0.17.13 ([#31](https://github.com/jBernavaPrah/azure-speech-sdk-rs/pull/31))
+- Clean up code formatting and remove unnecessary whitespace in audio processing files
+
 ## [0.7.0](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.6.0...v0.7.0) - 2025-03-16
 
 ### Added
