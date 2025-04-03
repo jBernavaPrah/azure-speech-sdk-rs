@@ -14,7 +14,7 @@ use std::cmp::min;
 use tokio::io::AsyncReadExt;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::{Stream, StreamExt as _};
-use tracing::warn;
+use tracing::{debug, warn};
 use url::Url;
 
 const BUFFER_SIZE: usize = 4096;
@@ -156,6 +156,11 @@ impl Client {
         let (audio_header, extra) = match audio_format {
             AudioFormat::Wav => {
                 let (header, extra) = extract_header_from_wav(&mut audio).await?;
+                debug!(
+                    "Audio WAV header({}): {:?}",
+                    header.len(),
+                    header[..44].to_vec()
+                );
                 (Some(header), extra)
             }
             _ => (None, vec![]),

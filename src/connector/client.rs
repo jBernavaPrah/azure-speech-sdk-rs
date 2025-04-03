@@ -74,11 +74,7 @@ impl Client {
                 m
             })
             .filter_map(move |message| match message {
-                Ok(message) => match message {
-                    Ok(message) => Some(message),
-                    // broadcast error, do not return it
-                    Err(_) => None,
-                },
+                Ok(message) => message.ok(),
                 // timeout error
                 Err(e) => Some(Err(crate::Error::ConnectionError(e.to_string()))),
             })
