@@ -45,7 +45,7 @@ pub enum AudioFormat {
     Audio16Khz16Bit32KbpsMonoOpus,
     Audio24Khz16Bit48KbpsMonoOpus,
     Audio24Khz16Bit24KbpsMonoOpus,
-    Custom(&'static str)
+    Custom(&'static str),
 }
 
 impl AudioFormat {
