@@ -1,6 +1,6 @@
 [package]
 name = "azure-speech"
-version = "0.8.0"
+version = "0.9.0"
 authors = ["Jure Bernava Prah <webjure@gmail.com>"]
 description = "Pure Rust SDK for Azure Speech Service"
 edition = "2021"

@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.8.0...v0.9.0) - 2025-04-30
+
+### Other
+
+- Fix missing comma in AudioFormat enum definition
+- Add support for custom audio formats
+- Simplify message handling and add debug logging for WAV header extraction
+
 ## [0.8.0](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.7.0...v0.8.0) - 2025-04-03
 
 ### Added
