@@ -45,6 +45,7 @@ pub enum AudioFormat {
     Audio16Khz16Bit32KbpsMonoOpus,
     Audio24Khz16Bit48KbpsMonoOpus,
     Audio24Khz16Bit24KbpsMonoOpus,
+    Custom(&'static str)
 }
 
 impl AudioFormat {
@@ -88,6 +89,7 @@ impl AudioFormat {
             AudioFormat::Audio16Khz16Bit32KbpsMonoOpus => "audio-16khz-16bit-32kbps-mono-opus",
             AudioFormat::Audio24Khz16Bit48KbpsMonoOpus => "audio-24khz-16bit-48kbps-mono-opus",
             AudioFormat::Audio24Khz16Bit24KbpsMonoOpus => "audio-24khz-16bit-24kbps-mono-opus",
+            AudioFormat::Custom(s) => s,
         }
     }
 }
