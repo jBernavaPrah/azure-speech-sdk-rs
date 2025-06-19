@@ -3,7 +3,42 @@ use std::time::Duration;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
-use tokio_websockets::ClientBuilder;
+use tokio_websockets::{self, ClientBuilder, MaybeTlsStream, WebSocketStream};
+
+#[async_trait::async_trait]
+trait Connector {
+    async fn connect_stream(&self) -> Result<WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>, tokio_websockets::Error>;
+}
+
+#[async_trait::async_trait]
+impl Connector for ClientBuilder<'static> {
+    async fn connect_stream(&self) -> Result<WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>, tokio_websockets::Error> {
+        Ok(self.connect().await?.0)
+    }
+}
+
+async fn reconnect_with_attempts<C: Connector>(
+    client: &C,
+    attempts: usize,
+) -> crate::Result<WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>> {
+    let mut last_error = None;
+    for i in 0..attempts {
+        tracing::debug!("Reconnecting ({}/{})", i + 1, attempts);
+        match client.connect_stream().await {
+            Ok(stream) => return Ok(stream),
+            Err(e) => {
+                tracing::error!("Failed to reconnect ({}/{}): {}", i + 1, attempts, e);
+                last_error.replace(e);
+            }
+        }
+    }
+
+    Err(crate::Error::ConnectionError(
+        last_error
+            .map(|e| e.to_string())
+            .unwrap_or_else(|| "reconnect failed".to_string()),
+    ))
+}
 
 enum InternalMessage {
     SendMessage(tokio_websockets::Message),
@@ -26,6 +61,7 @@ impl Client {
         Self { channel }
     }
 }
+
 impl Client {
     pub async fn send(&self, message: tokio_websockets::Message) -> crate::Result<()> {
         self.channel
@@ -75,8 +111,7 @@ impl Client {
             })
             .filter_map(move |message| match message {
                 Ok(message) => message.ok(),
-                // timeout error
-                Err(e) => Some(Err(crate::Error::ConnectionError(e.to_string()))),
+                Err(_e) => Some(Err(crate::Error::Timeout)),
             })
             .map(move |message| {
                 message.and_then(|msg| {
@@ -111,32 +146,15 @@ impl Client {
                             },
                             InternalMessage::Subscribe(c) => {
                                 if !connected {
-                                    // We got disconnected from the server for whatever reason. Since we are currently
-                                    // expecting a stream, now would be a good time to try to reconnect.
-                                    let mut last_error = None;
-                                    for i in 0..3 {
-                                        tracing::debug!("Reconnecting ({i}/3)");
-
-                                        match client.connect().await {
-
-                                            Ok((new_stream, _)) => {
-                                                tracing::debug!("Reconnected successfully");
-                                                drop(last_error.take());
-                                                connected = true;
-                                                stream = new_stream;
-                                                break;
-                                            }
-                                            Err(e) => {
-                                                tracing::error!("Failed to reconnect ({i}/3): {e}");
-                                                last_error.replace(e);
-                                            }
+                                    match reconnect_with_attempts(&client, 3).await {
+                                        Ok(new_stream) => {
+                                            connected = true;
+                                            stream = new_stream;
                                         }
-                                    }
-
-                                    // If we still haven't reconnected, send the error to the client.
-                                    if let Some(err) = last_error.take() {
-                                        let _ = c.send(Err(crate::Error::ConnectionError(err.to_string())));
-                                        continue;
+                                        Err(err) => {
+                                            let _ = c.send(Err(err));
+                                            continue;
+                                        }
                                     }
                                 }
 
@@ -182,10 +200,58 @@ impl Client {
     }
 
     /// Disconnect the client.
-    pub(crate) async fn disconnect(&self) -> crate::Result<()> {
+pub(crate) async fn disconnect(&self) -> crate::Result<()> {
         self.channel.send(InternalMessage::Disconnect).await?;
         // await the client to disconnect.
         self.channel.closed().await;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct MockConnector {
+        fail_times: usize,
+        calls: AtomicUsize,
+    }
+
+    #[async_trait::async_trait]
+    impl Connector for MockConnector {
+        async fn connect_stream(
+            &self,
+        ) -> Result<WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>, tokio_websockets::Error>
+        {
+            let attempt = self.calls.fetch_add(1, Ordering::SeqCst);
+            if attempt < self.fail_times {
+                Err(tokio_websockets::Error::Io(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "fail",
+                )))
+            } else {
+                let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+                let addr = listener.local_addr().unwrap();
+                tokio::spawn(async move { let _ = listener.accept().await; });
+                let stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+                Ok(ClientBuilder::new().take_over(MaybeTlsStream::Plain(stream)))
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn reconnect_helper_succeeds_after_retries() {
+        let builder = MockConnector { fail_times: 2, calls: AtomicUsize::new(0) };
+        let _ = reconnect_with_attempts(&builder, 3).await.expect("should connect");
+        assert_eq!(builder.calls.load(Ordering::SeqCst), 3);
+    }
+
+    #[tokio::test]
+    async fn reconnect_helper_fails_after_max_attempts() {
+        let builder = MockConnector { fail_times: 5, calls: AtomicUsize::new(0) };
+        let res = reconnect_with_attempts(&builder, 3).await;
+        assert!(res.is_err());
+        assert_eq!(builder.calls.load(Ordering::SeqCst), 3);
     }
 }
