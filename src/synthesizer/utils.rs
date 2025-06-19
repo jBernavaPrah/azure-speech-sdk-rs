@@ -84,3 +84,43 @@ pub(crate) fn create_ssml_message(request_id: String, ssml: &str) -> Message {
         Some(ssml),
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{synthesizer::Config, Data, Message as EzMessage};
+
+    #[test]
+    fn test_create_speech_config_message() {
+        let config = Config::new();
+        let ws_msg = create_speech_config_message("id".to_string(), &config);
+        let msg = EzMessage::try_from(ws_msg).unwrap();
+
+        assert_eq!(msg.path, "speech.config");
+        assert_eq!(msg.id, "id");
+        assert_eq!(msg.get_header("Content-Type").unwrap(), "application/json");
+        assert!(msg.get_header("X-Timestamp").is_some());
+
+        match msg.data {
+            Data::Text(Some(ref body)) => {
+                let v: serde_json::Value = serde_json::from_str(body).unwrap();
+                assert!(v.get("context").is_some());
+            }
+            _ => panic!("expected text body"),
+        }
+    }
+
+    #[test]
+    fn test_create_ssml_message() {
+        let ws_msg = create_ssml_message("id".to_string(), "<speak>Hello</speak>");
+        let msg = EzMessage::try_from(ws_msg).unwrap();
+
+        assert_eq!(msg.path, "ssml");
+        assert_eq!(msg.id, "id");
+        assert_eq!(
+            msg.get_header("Content-Type").unwrap(),
+            "application/ssml+xml"
+        );
+        assert!(matches!(msg.data, Data::Text(Some(_))));
+    }
+}

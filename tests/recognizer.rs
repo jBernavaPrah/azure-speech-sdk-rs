@@ -14,9 +14,9 @@ use tracing::{error, info};
 
 #[tokio::test]
 async fn integration_test_reconnect() {
-    tracing_subscriber::fmt()
+    let _ = tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
-        .init();
+        .try_init();
 
     let orig_hook = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {
@@ -142,9 +142,9 @@ async fn integration_test_reconnect() {
 
 #[tokio::test]
 async fn integration_test_recognizer() {
-    tracing_subscriber::fmt()
+    let _ = tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
-        .init();
+        .try_init();
 
     let orig_hook = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {

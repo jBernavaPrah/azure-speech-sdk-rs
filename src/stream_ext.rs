@@ -133,3 +133,37 @@ where
 }
 
 impl<St: ?Sized + 'static> StreamExt for St where St: Stream {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::callback::Callback;
+    use std::sync::{Arc, Mutex};
+
+    struct CollectCallback(Arc<Mutex<Vec<i32>>>);
+
+    impl Callback for CollectCallback {
+        type Item = i32;
+        fn on_event(&self, item: Self::Item) -> impl Future<Output = ()> {
+            let data = self.0.clone();
+            async move {
+                data.lock().unwrap().push(item);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_stop_after_includes_trigger() {
+        let stream = tokio_stream::iter(1..=5).stop_after(|&x| x >= 3);
+        let collected: Vec<_> = stream.collect().await;
+        assert_eq!(collected, vec![1, 2, 3]);
+    }
+
+    #[tokio::test]
+    async fn test_use_callbacks_collects_items() {
+        let store = Arc::new(Mutex::new(Vec::new()));
+        let cb = CollectCallback(store.clone());
+        tokio_stream::iter(1..=3).use_callbacks(cb).await;
+        assert_eq!(*store.lock().unwrap(), vec![1, 2, 3]);
+    }
+}
