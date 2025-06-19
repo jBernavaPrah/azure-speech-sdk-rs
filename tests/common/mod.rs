@@ -62,3 +62,30 @@ pub fn messages_match(msg1: Message, msg2: Message) -> bool {
             && msg2.is_binary()
             && msg1.as_payload().to_vec() == msg2.as_payload().to_vec())
 }
+
+pub fn make_text_payload(headers: Vec<(String, String)>, data: Option<&str>) -> String {
+    let mut header_string = String::new();
+    for (k, v) in headers {
+        header_string.push_str(&format!("{k}:{v}\r\n"));
+    }
+
+    format!("{header_string}\r\n{}", data.unwrap_or(""))
+}
+
+pub fn make_binary_payload(headers: Vec<(String, String)>, data: Option<&[u8]>) -> Vec<u8> {
+    let mut header_string = String::new();
+    for (k, v) in headers {
+        header_string.push_str(&format!("{k}:{v}\r\n"));
+    }
+
+    let header_len = header_string.len();
+    let data_len = data.map_or(0, |d| d.len());
+    let mut payload = vec![0u8; 2 + header_len + data_len];
+    payload[0] = ((header_len >> 8) & 0xff) as u8;
+    payload[1] = (header_len & 0xff) as u8;
+    payload[2..2 + header_len].copy_from_slice(header_string.as_bytes());
+    if let Some(d) = data {
+        payload[2 + header_len..].copy_from_slice(d);
+    }
+    payload
+}
