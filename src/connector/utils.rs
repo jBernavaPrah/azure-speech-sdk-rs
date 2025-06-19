@@ -32,7 +32,21 @@ pub fn make_binary_payload(headers: Headers, data: Option<&[u8]>) -> Vec<u8> {
 pub fn extract_headers_and_data_from_binary_message(
     data: &[u8],
 ) -> Result<(Headers, Option<Vec<u8>>), crate::Error> {
+    if data.len() < 2 {
+        return Err(crate::Error::ParseError(
+            "binary message too short".to_string(),
+        ));
+    }
+
     let header_length = ((data[0] as usize) << 8) + data[1] as usize;
+
+    if data.len() < 2 + header_length {
+        return Err(crate::Error::ParseError(format!(
+            "binary header length {} exceeds data len {}",
+            header_length, data.len()
+        )));
+    }
+
     let headers = std::str::from_utf8(&data[2..2 + header_length])
         .map_err(|_| crate::Error::ParseError("Error parsing headers".to_string()))?;
     let data = if header_length + 2 < data.len() {
@@ -177,5 +191,13 @@ mod tests {
                 ("Multi".to_string(), "Part".to_string()),
             ]
         );
+    }
+
+    #[test]
+    fn extract_headers_and_data_from_binary_message_rejects_short_frames() {
+        // header length is encoded as 10 but only 5 bytes of data provided
+        let data = [0u8, 10, 1, 2, 3];
+        let res = extract_headers_and_data_from_binary_message(&data);
+        assert!(matches!(res, Err(crate::Error::ParseError(_))));
     }
 }
