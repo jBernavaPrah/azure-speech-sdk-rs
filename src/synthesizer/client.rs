@@ -19,7 +19,8 @@ pub struct Client {
 }
 
 impl Client {
-    pub(crate) fn new(client: BaseClient, config: Config) -> Self {
+    /// Create a new synthesizer client from an existing connector [`Client`].
+    pub fn new(client: BaseClient, config: Config) -> Self {
         Self { client, config }
     }
 

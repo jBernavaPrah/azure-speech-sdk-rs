@@ -1,6 +1,6 @@
 mod common;
 
-use azure_speech::{recognizer, Data};
+use azure_speech::{recognizer, Data, Message};
 use futures_util::{SinkExt, StreamExt};
 use http::Uri;
 use std::collections::VecDeque;
@@ -11,6 +11,37 @@ use std::{panic, process};
 use tokio::net::TcpStream;
 use tokio_websockets::{ClientBuilder, WebSocketStream};
 use tracing::{error, info};
+
+fn recognizer_server() -> impl Fn(WebSocketStream<TcpStream>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Clone {
+    |mut ws: WebSocketStream<TcpStream>| Box::pin(async move {
+
+        let request_id = match ws.next().await {
+            Some(Ok(msg)) => Message::try_from(msg).unwrap().id,
+            _ => return,
+        };
+
+        // consume the rest of the handshake messages
+        ws.next().await;
+        ws.next().await;
+        ws.next().await;
+
+        use crate::common::make_text_payload;
+
+        let start = make_text_payload(
+            vec![("X-RequestId".to_string(), request_id.clone()), ("Path".to_string(), "turn.start".to_string())],
+            None,
+        );
+        let end = make_text_payload(
+            vec![("X-RequestId".to_string(), request_id.clone()), ("Path".to_string(), "turn.end".to_string())],
+            None,
+        );
+
+        ws.send(tokio_websockets::Message::text(start)).await.unwrap();
+        ws.send(tokio_websockets::Message::text(end)).await.unwrap();
+
+        let _ = ws.close().await;
+    })
+}
 
 #[tokio::test]
 async fn integration_test_reconnect() {
@@ -26,7 +57,7 @@ async fn integration_test_reconnect() {
         process::exit(0);
     }));
 
-    let address = "127.0.0.1:3456";
+    let address = "127.0.0.1:3457";
 
     common::start_server(
         address,
@@ -154,7 +185,7 @@ async fn integration_test_recognizer() {
         process::exit(0);
     }));
 
-    let address = "127.0.0.1:3456";
+    let address = "127.0.0.1:3458";
 
     common::start_server(
         address,
@@ -283,4 +314,56 @@ async fn integration_test_recognizer() {
     // while let Some(event) = events.next().await {
     //     println!("event: {:?}", event);
     // }
+}
+
+#[tokio::test]
+async fn functional_disconnect_reconnect_recognizer() {
+    let _ = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .try_init();
+
+    let address = "127.0.0.1:4566";
+
+    common::start_server(
+        address,
+        VecDeque::from_iter(vec![recognizer_server(), recognizer_server()]),
+    )
+    .await;
+
+    let uri = Uri::from_str(format!("ws://{}", address).as_str()).unwrap();
+    let client = azure_speech::connector::Client::connect(ClientBuilder::from_uri(uri.clone()))
+        .await
+        .unwrap();
+
+    let recognizer = recognizer::Client::new(client, recognizer::Config::default());
+
+    recognizer
+        .recognize(
+            tokio_stream::iter(vec![]),
+            recognizer::AudioFormat::Mp3,
+            recognizer::AudioDevice::unknown(),
+        )
+        .await
+        .unwrap()
+        .collect::<Vec<_>>()
+        .await;
+
+    recognizer.disconnect().await.unwrap();
+
+    let client = azure_speech::connector::Client::connect(ClientBuilder::from_uri(uri))
+        .await
+        .unwrap();
+
+    let recognizer = recognizer::Client::new(client, recognizer::Config::default());
+
+    recognizer
+        .recognize(
+            tokio_stream::iter(vec![]),
+            recognizer::AudioFormat::Mp3,
+            recognizer::AudioDevice::unknown(),
+        )
+        .await
+        .unwrap()
+        .collect::<Vec<_>>()
+        .await;
 }
