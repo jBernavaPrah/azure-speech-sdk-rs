@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.9.0...v0.10.0) - 2025-06-20
+
+### Other
+
+- Add reconnect functional tests ([#42](https://github.com/jBernavaPrah/azure-speech-sdk-rs/pull/42))
+- Improve connector error handling ([#41](https://github.com/jBernavaPrah/azure-speech-sdk-rs/pull/41))
+- Add unit and integration tests ([#39](https://github.com/jBernavaPrah/azure-speech-sdk-rs/pull/39))
+
 ## [0.9.0](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.8.0...v0.9.0) - 2025-04-30
 
 ### Other
