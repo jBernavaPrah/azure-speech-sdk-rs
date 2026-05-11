@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.10.0...v0.10.1) - 2026-05-11
+
+### Other
+
+- *(deps)* bump openssl from 0.10.71 to 0.10.78 ([#46](https://github.com/jBernavaPrah/azure-speech-sdk-rs/pull/46))
+
 ## [0.10.0](https://github.com/jBernavaPrah/azure-speech-sdk-rs/compare/v0.9.0...v0.10.0) - 2025-06-20
 
 ### Other
